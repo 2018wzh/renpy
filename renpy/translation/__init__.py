@@ -29,6 +29,7 @@ import hashlib
 import re
 import collections
 import os
+import sys
 import time
 import io
 import codecs
@@ -573,6 +574,10 @@ class StringTranslator(object):
             fn = os.path.join(renpy.config.gamedir, "strings.rpy")
         else:
             fn = os.path.join(renpy.config.gamedir, renpy.config.tl_directory, language, "strings.rpy")
+        bridge = sys.modules.get("astra_renpy_bridge")
+        if bridge is not None and bridge.session_active():
+            fn = bridge.generated_path(fn)
+
 
         with renpy.translation.generation.open_tl_file(fn) as f:
             f.write("translate {} strings:\n".format(language))

@@ -28,6 +28,7 @@ from __future__ import division, absolute_import, with_statement, print_function
 from renpy.compat import PY2, basestring, bchr, bord, chr, open, pystr, range, round, str, tobytes, unicode  # *
 
 import os
+import sys
 import zipfile
 import json
 
@@ -698,13 +699,16 @@ def init():
     location_add(renpy.config.savedir)
 
     # 2. Game-local savedir.
-    if (not renpy.mobile) and (not renpy.macapp):
+    bridge = sys.modules.get("astra_renpy_bridge")
+    embedded = bridge is not None and bridge.session_active()
+    if (not renpy.mobile) and (not renpy.macapp) and not embedded:
         path = os.path.join(renpy.config.gamedir, "saves")
         location_add(path)
 
     # 3. Extra savedirs.
-    for i in renpy.config.extra_savedirs:
-        location_add(i)
+    if not embedded:
+        for i in renpy.config.extra_savedirs:
+            location_add(i)
 
     # Scan the location once.
     location.scan()

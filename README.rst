@@ -189,3 +189,83 @@ License
 For the complete licensing terms, please read:
 
 https://www.renpy.org/doc/html/license.html
+
+
+AstraEMU 原生接入
+================
+
+``astra`` 分支基于官方 ``8.5.3.26051504``，上游提交
+``39895c1e017f0b36ffea2447d97eccd69d76ee1c``。适配包为
+``astra-emu-renpy``，plugin/family ID 均为 ``renpy``，当前构建目标为
+Windows x64，导出 AstraEMU C ABI v3。
+
+执行、Screen Language、ATL、GL2、音视频、回滚及存档全部使用原 Ren'Py。
+不另写 ``.rpy/.rpyc`` 解释器，也不启动游戏子进程。官方 CPython 3.12.7
+及编译扩展保持在同一进程、同一原生工作线程；解释器随模块常驻，关闭游戏
+使用官方清理与 ``reload_all``，不反复 finalize/reinitialize Cython 模块。
+
+只重编译必要的 ``renpy.pygame.display``：SDL GL backing window 从创建起
+保持隐藏，不在核心中 swap。最终 GL2 back buffer 经原 ``uguu.glReadPixels``
+直接写入四槽原生帧池，CPU lease 独立于 Python、窗口及 session 生存。
+Manager 是最终呈现者。输入进入同一 SDK 的 SDL 状态与事件队列；暂停复用
+原生全局音视频暂停，并扣除游戏时钟中的暂停时长。
+
+构建
+----
+
+需要 MSVC x64、CMake/Ninja、构建用 Python 3.11+ 与 Cython 3.2.4、CPython
+3.12.7 开发头、SDL 2.0.20 头，以及官方 Ren'Py 8.5.3 SDK。源码与原生 SDK
+必须匹配；``astra/sdk.json`` 记录来源、ZIP 校验和及五个原生 DLL 的固定
+SHA256，构建入口拒绝不匹配的原生库。MSVC 导入库由官方 MinGW DLL 的
+导出生成，不加载第二份 Python 或 SDL。
+
+在已加载 MSVC x64 环境的 shell 中执行::
+
+    cmake -S astra -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DPython3_EXECUTABLE="$CYTHON_PYTHON" \
+      -DRENPY_SDK_ROOT="$RENPY_SDK" \
+      -DRENPY_PYTHON_DEV="$PYTHON_DEV_ROOT" \
+      -DRENPY_SDL_INCLUDE="$SDL_INCLUDE"
+    cmake --build "$BUILD"
+    cmake --install "$BUILD" --prefix "$CORE_OUTPUT"
+
+``PYTHON_DEV_ROOT`` 下应有 ``include/Python.h``，``SDL_INCLUDE`` 下应有
+``SDL.h``。产物为根目录 ``astra_emu_renpy.dll``、官方原生依赖及 ``Resources/``。
+后者包含本 fork 的 Python/common 资源、官方标准库和 display override；
+不能只复制核心 DLL。Host 必须使用 ``astra.module_owner`` v1 扩展。
+
+运行与资源转换
+--------------
+
+唯一配置 ``data_directory`` 指定私有数据根；留空使用当前用户的本地应用
+数据目录。核心按规范游戏路径分配独立子目录，保存、日志和生成缓存都不写回
+原安装。载入失败保留原资源，不从原游戏存档目录合并数据。
+
+核心保留官方 RPA 索引格式。发行版自定义封装通过 AstraEMU 的显式 Luau
+离线补丁转换为标准资源；本核心没有索引列顺序配置、游戏名判断或替代
+archive loader。转换产物使用官方路径读取，播放时不加载转换脚本。
+
+公开 ``astra/fixtures/smoke`` 项目走生产 C ABI 验证了菜单、鼠标/键盘、
+Unicode 输入、原生存读档、ATL 暂停恢复、初始挂起、关闭后 lease、
+同进程重开、owner 重建，以及阻塞窗口请求取消后再次打开。
+这些结果不等于所有 Ren'Py 版本、第三方扩展或完整游戏路线均兼容。
+
+真实 HimaNatsu 8.5.2 发行版经显式 Luau 归一化后，已验证内置简体中文、
+主菜单、连续正文、原生保存/读回后继续、暂停恢复、同进程重开后再次读档，
+以及与 640×360 项目双向切换。实际游戏逻辑画布为 2560×1440，交付
+1280×720 完整帧；原安装 1443 个文件及 49 个原存档/缓存内容均未改变。
+未验全路线、结局、完整影片或人工听音，不外推其它 Ren'Py 版本。
+
+常驻解释器在官方备份恢复前还原 SDK 函数和类方法的原始绑定，并移除类上
+新增的补丁标记，防止游戏修改的模块别名或文字方法泄漏到下一会话；
+此清理与游戏名无关。
+
+许可与分发
+----------
+
+原 Ren'Py 及组件继续使用原许可；适配代码及共享 ABI 的 MIT 许可见
+``astra/LICENSE``。安装目录附官方完整 ``LICENSE.txt``、pthread 说明和来源
+清单；SDK 的 LGPL 组件仍有对应源码与重新链接义务。
+不打包 Steam、Cubism、Bink、nvdrs 或微软 D3DCompiler 再发行 DLL。
+ANGLE 如需 D3DCompiler，使用 Windows 系统组件。商业资源、存档与验证画面
+不属于核心包或源码仓库。

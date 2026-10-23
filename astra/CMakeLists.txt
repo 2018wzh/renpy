@@ -1,0 +1,85 @@
+cmake_minimum_required(VERSION 3.25)
+project(astra-emu-renpy LANGUAGES C CXX)
+
+if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "The current Ren'Py SDK adapter requires MSVC Windows x64")
+endif()
+set(RENPY_SDK_ROOT "" CACHE PATH "Official Ren'Py 8.5.3 SDK root")
+set(RENPY_PYTHON_DEV "" CACHE PATH "CPython 3.12.7 development root (containing include)")
+set(RENPY_SDL_INCLUDE "" CACHE PATH "SDL 2.0.20 include directory")
+find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
+get_filename_component(RENPY_SOURCE "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(RENPY_NATIVE "${RENPY_SDK_ROOT}/lib/py3-windows-x86_64")
+foreach(required "${RENPY_NATIVE}/librenpython.dll" "${RENPY_NATIVE}/libpython3.12.dll"
+        "${RENPY_PYTHON_DEV}/include/Python.h" "${RENPY_SDL_INCLUDE}/SDL.h")
+    if(NOT EXISTS "${required}")
+        message(FATAL_ERROR "Missing pinned Ren'Py SDK development input: ${required}")
+    endif()
+endforeach()
+file(COPY "${RENPY_SDL_INCLUDE}/" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/headers/SDL2")
+execute_process(COMMAND "${Python3_EXECUTABLE}" -c "import Cython; assert Cython.__version__ == '3.2.4'"
+    RESULT_VARIABLE cython_status)
+if(NOT cython_status EQUAL 0)
+    message(FATAL_ERROR "The build interpreter must provide Cython 3.2.4")
+endif()
+get_filename_component(msvc_bin "${CMAKE_LINKER}" DIRECTORY)
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/prepare_imports.py"
+    --dumpbin "${msvc_bin}/dumpbin.exe" --lib "${msvc_bin}/lib.exe"
+    --sdk "${RENPY_SDK_ROOT}" --output "${CMAKE_CURRENT_BINARY_DIR}/imports"
+    COMMAND_ERROR_IS_FATAL ANY)
+
+file(GLOB_RECURSE cython_dependencies CONFIGURE_DEPENDS "${RENPY_SOURCE}/renpy/*.pxd" "${RENPY_SOURCE}/src/*.pxd")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/display.c"
+    COMMAND "${Python3_EXECUTABLE}" -m cython -3 -X profile=False -X embedsignature=True
+        -X embedsignature.format=python -I "${RENPY_SOURCE}" -I "${RENPY_SOURCE}/src"
+        -I "${RENPY_SOURCE}/src/pygame/include" "${RENPY_SOURCE}/renpy/pygame/display.pyx"
+        -o "${CMAKE_CURRENT_BINARY_DIR}/display.c"
+    DEPENDS "${RENPY_SOURCE}/renpy/pygame/display.pyx" ${cython_dependencies}
+    VERBATIM)
+add_library(astra_renpy_display MODULE "${CMAKE_CURRENT_BINARY_DIR}/display.c")
+target_include_directories(astra_renpy_display PRIVATE "${RENPY_PYTHON_DEV}/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/headers" "${RENPY_SOURCE}/src" "${RENPY_SOURCE}/src/pygame/include")
+target_link_libraries(astra_renpy_display PRIVATE
+    "${CMAKE_CURRENT_BINARY_DIR}/imports/libpython3.12.lib"
+    "${CMAKE_CURRENT_BINARY_DIR}/imports/librenpython.lib")
+# MSVC's Python headers name the stock interpreter import library. The SDK
+# uses its own MinGW-built libpython3.12.dll; never bind a second interpreter.
+target_link_options(astra_renpy_display PRIVATE /NODEFAULTLIB:python312.lib)
+set_target_properties(astra_renpy_display PROPERTIES PREFIX "" OUTPUT_NAME display SUFFIX ".pyd"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/overrides"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/overrides")
+
+add_library(astra_emu_renpy SHARED core.cpp)
+target_compile_features(astra_emu_renpy PRIVATE cxx_std_17)
+target_compile_definitions(astra_emu_renpy PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_include_directories(astra_emu_renpy PRIVATE "${RENPY_PYTHON_DEV}/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/headers" "${RENPY_SDL_INCLUDE}"
+    "${CMAKE_CURRENT_LIST_DIR}/vendor/astra-emu-abi/include")
+target_link_libraries(astra_emu_renpy PRIVATE
+    "${CMAKE_CURRENT_BINARY_DIR}/imports/libpython3.12.lib"
+    "${CMAKE_CURRENT_BINARY_DIR}/imports/librenpython.lib")
+target_link_options(astra_emu_renpy PRIVATE /NODEFAULTLIB:python312.lib)
+set_target_properties(astra_emu_renpy PROPERTIES PREFIX "" OUTPUT_NAME astra_emu_renpy)
+add_dependencies(astra_emu_renpy astra_renpy_display)
+
+install(TARGETS astra_emu_renpy RUNTIME DESTINATION .)
+install(TARGETS astra_renpy_display LIBRARY DESTINATION Resources/overrides
+    RUNTIME DESTINATION Resources/overrides)
+foreach(dll libpython3.12.dll librenpython.dll libwinpthread-1.dll libEGL.dll libGLESv2.dll)
+    install(FILES "${RENPY_NATIVE}/${dll}" DESTINATION .)
+endforeach()
+# Ship only the open-source runtime, not SDK launchers, Steam/Cubism extensions,
+# nvdrs driver-profile modifications, or Microsoft's redistributable shader DLL.
+# On Windows ANGLE may use the operating system's D3DCompiler_47.dll.
+install(DIRECTORY "${RENPY_SDK_ROOT}/lib/python3.12" DESTINATION Resources/lib
+    PATTERN "__pycache__" EXCLUDE)
+install(DIRECTORY "${RENPY_SOURCE}/renpy/" DESTINATION Resources/renpy
+    PATTERN "*.pyx" EXCLUDE PATTERN "*.pxd" EXCLUDE PATTERN "*.pxi" EXCLUDE
+    PATTERN "*.pyi" EXCLUDE PATTERN "__pycache__" EXCLUDE PATTERN ".git*" EXCLUDE)
+install(FILES "${RENPY_SOURCE}/renpy.py" "${CMAKE_CURRENT_LIST_DIR}/astra_renpy_bridge.py"
+    DESTINATION Resources)
+# Generated by the SDK release build, deliberately not checked into upstream.
+install(FILES "${RENPY_SDK_ROOT}/renpy/vc_version.py" DESTINATION Resources/renpy)
+install(FILES "${RENPY_SDK_ROOT}/LICENSE.txt" "${RENPY_NATIVE}/libwinpthread-1.txt"
+    "${CMAKE_CURRENT_LIST_DIR}/sdk.json" "${RENPY_SOURCE}/README.rst" DESTINATION .)
+install(FILES "${CMAKE_CURRENT_LIST_DIR}/LICENSE" DESTINATION . RENAME LICENSE-ASTRA.txt)

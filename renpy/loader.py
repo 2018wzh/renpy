@@ -53,6 +53,10 @@ def get_path(fn):
     This always returns a path, but the path may or may not be writable.
     """
 
+    bridge = sys.modules.get("astra_renpy_bridge")
+    if bridge is not None and bridge.session_active():
+        return bridge.generated_path(fn)
+
     fn = os.path.join(renpy.config.gamedir, fn)
     dn = os.path.dirname(fn)
 

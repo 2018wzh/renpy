@@ -25,6 +25,10 @@ import subprocess
 import io
 import textwrap
 
+# Astra's owner thread uses the ordinary bootstrap without process/window ownership.
+def astra_embedded():
+    return "astra_renpy_bridge" in sys.modules and sys.modules["astra_renpy_bridge"].session_active()
+
 
 # Encoding and sys.stderr/stdout handling ######################################
 
@@ -209,6 +213,9 @@ def relaunch():
     """
     Call this to launch a new copy of the same game.
     """
+    if astra_embedded():
+        raise RuntimeError("Relaunching a process is unsupported in AstraEMU.")
+
 
     if hasattr(sys, "renpy_executable"):
         subprocess.Popen([sys.renpy_executable] + sys.argv[1:])  # type: ignore
@@ -316,7 +323,10 @@ def bootstrap(renpy_base):
     # won't import.)
     try:
         import renpy.pygame
-        renpy.pygame.import_as_pygame()
+        if (not astra_embedded()
+                or sys.modules.get("pygame") is not renpy.pygame
+                or sys.modules.get("pygame_sdl2") is not renpy.pygame):
+            renpy.pygame.import_as_pygame()
     except Exception as e:
         e.add_note(
             textwrap.dedent(f"""
@@ -334,7 +344,7 @@ def bootstrap(renpy_base):
     gamedir = renpy.__main__.path_to_gamedir(basedir, name)
 
     # If we're not given a command, show the presplash.
-    if args.command == "run" and not renpy.mobile:
+    if args.command == "run" and not renpy.mobile and not astra_embedded():
         import renpy.display.presplash
 
         renpy.display.presplash.start(basedir, gamedir)
@@ -357,7 +367,11 @@ def bootstrap(renpy_base):
     # Load the rest of Ren'Py.
     import renpy
 
-    renpy.import_all()
+    if not astra_embedded() or not renpy.backup.names:
+        renpy.import_all()
+
+    if astra_embedded():
+        sys.modules["astra_renpy_bridge"].install_hooks()
 
     renpy.importer.init_importer()
 
@@ -415,11 +429,14 @@ def bootstrap(renpy_base):
                     relaunch()
 
             except renpy.game.ParseErrorException:
-                pass
+                if astra_embedded():
+                    raise RuntimeError("Ren'Py script parsing failed.")
 
             except Exception as e:
                 # If exception was raised outside of Ren'Py execution context,
                 # or context was unable to handle it, report it here.
+                if astra_embedded():
+                    raise
                 renpy.error.report_exception(e, editor=True)
 
         sys.exit(exit_status)
@@ -431,18 +448,21 @@ def bootstrap(renpy_base):
         renpy.display.tts.tts(None)  # type: ignore
 
 
-        if renpy.display.draw:  # type: ignore
-            renpy.display.im.cache.quit()  # type: ignore
-            renpy.display.draw.quit()  # type: ignore
+        # Embedded sessions release draw/audio once, through reload_all, while the
+        # context and Interface are still usable for the official memory cleanup.
+        if not astra_embedded():
+            if renpy.display.draw:  # type: ignore
+                renpy.display.im.cache.quit()  # type: ignore
+                renpy.display.draw.quit()  # type: ignore
 
-        renpy.audio.audio.quit()
+            renpy.audio.audio.quit()
 
         for cb in renpy.config.python_exit_callbacks:
             cb()
 
         # Prevent subprocess from throwing errors while trying to run it's
         # __del__ method during shutdown.
-        if not renpy.emscripten:
+        if not renpy.emscripten and not astra_embedded():
             subprocess.Popen.__del__ = popen_del  # type: ignore
 
         if renpy.android:

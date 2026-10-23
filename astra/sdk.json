@@ -1,0 +1,18 @@
+{
+  "version": "8.5.3.26051504",
+  "source_revision": "39895c1e017f0b36ffea2447d97eccd69d76ee1c",
+  "build_revision": "renpy/renpy-build@renpy-8.5.3.26051504",
+  "url": "https://www.renpy.org/dl/8.5.3/renpy-8.5.3-sdk.zip",
+  "sha256": "ff57648f9c04f27e381c48af6d8e3ee3cdec296bed4d3831f47f09b0a71b505e",
+  "python": "3.12.7",
+  "cython": "3.2.4",
+  "sdl": "2.0.20",
+  "abi_revision": "6d9d691dcc8f3d768e40b5be1d6f37366cca62d8",
+  "windows_x86_64": {
+    "libpython3.12.dll": "e964c5a8decf29db4cff43f5eb268f711b8a89e83375b44c14e6fcc2171d5e18",
+    "librenpython.dll": "36c48e7659c78a2223b4f69467eaeada71b995fd381a56264bf370fe67ddd757",
+    "libwinpthread-1.dll": "eb5c64566c2935ff0709cf248d2036fa87acfb862ff722f7017a48fdc571bd3b",
+    "libEGL.dll": "b20c1e14e42da55c13dad3c23a5060ca086eaf5b18b12ef5c60cd7e80276a9f2",
+    "libGLESv2.dll": "2d171e91e1fe7205b76dd69ba9f7ddce7910283a5a5111c09c84f5db8c795a74"
+  }
+}

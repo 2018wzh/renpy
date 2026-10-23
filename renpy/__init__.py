@@ -662,7 +662,8 @@ def reload_all():
     renpy.importer.quit_importer()
 
     # Free memory.
-    renpy.exports.free_memory()
+    if renpy.display.interface is not None:
+        renpy.exports.free_memory()
 
     # GC renders.
     renpy.display.render.screen_render = None
@@ -672,7 +673,8 @@ def reload_all():
     renpy.display.interface = None
 
     if not renpy.session.get("_keep_renderer", False):
-        renpy.display.draw.quit()  # type: ignore
+        if renpy.display.draw is not None:
+            renpy.display.draw.quit()
         renpy.display.draw = None
 
     py_compile_cache = renpy.python.py_compile_cache
@@ -691,6 +693,12 @@ def reload_all():
         elif any(issubmodule(i, m) for m in reload_modules):
             del sys.modules[i]
 
+    # Pickled function references resolve through current module attributes.
+    # A resident embedded interpreter must first undo game monkey-patches.
+    bridge = sys.modules.get("astra_renpy_bridge")
+    if bridge is not None and bridge.session_active():
+        bridge.restore_sdk_callables()
+
     # Restore the state of all modules from backup.
     backup.restore()
 
@@ -707,6 +715,11 @@ def reload_all():
 
     # Reset main log clock.
     renpy.main.reset_clock()
+
+    # Backup.restore resets Python platform hooks; reapply only after restoration.
+    bridge = sys.modules.get("astra_renpy_bridge")
+    if bridge is not None and bridge.session_active():
+        bridge.install_hooks()
 
 
 # renpy.store and sub-modules can have names of any type inside.
