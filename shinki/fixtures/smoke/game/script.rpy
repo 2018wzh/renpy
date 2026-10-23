@@ -1,13 +1,13 @@
-# Copyright 2026 AstraEngine contributors. SPDX-License-Identifier: MIT
+# Copyright 2026 RoukakuEngine contributors. SPDX-License-Identifier: MIT
 # This is a real Ren'Py project, also runnable with the unmodified official SDK.
-define config.name = "Astra Ren'Py Native Smoke"
+define config.name = "Shinki Ren'Py Native Smoke"
 define config.version = "1.0"
 define config.screen_width = 640
 define config.screen_height = 360
 define config.physical_width = 640
 define config.physical_height = 360
-define config.window_title = "Astra Ren'Py Native Smoke"
-define config.save_directory = "astra-renpy-native-smoke"
+define config.window_title = "Shinki Ren'Py Native Smoke"
+define config.save_directory = "shinki-renpy-native-smoke"
 define config.has_autosave = False
 define config.autosave_on_choice = False
 define config.autosave_on_input = False
@@ -60,7 +60,7 @@ screen input(prompt):
 
 screen native_storage():
     modal True
-    add Solid("#195b38" if smoke_value == 7 and smoke_name == "Astra Ω" else "#852b36")
+    add Solid("#195b38" if smoke_value == 7 and smoke_name == "Shinki Ω" else "#852b36")
     text "SAVE / CHANGE / LOAD" xalign 0.5 ypos 26 size 28
     text "Value: [smoke_value]" xalign 0.5 ypos 66 size 22
     text "Name: [smoke_name]" xalign 0.5 ypos 215 size 20

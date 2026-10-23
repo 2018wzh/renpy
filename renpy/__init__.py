@@ -695,7 +695,7 @@ def reload_all():
 
     # Pickled function references resolve through current module attributes.
     # A resident embedded interpreter must first undo game monkey-patches.
-    bridge = sys.modules.get("astra_renpy_bridge")
+    bridge = sys.modules.get("shinki_renpy_bridge")
     if bridge is not None and bridge.session_active():
         bridge.restore_sdk_callables()
 
@@ -717,7 +717,7 @@ def reload_all():
     renpy.main.reset_clock()
 
     # Backup.restore resets Python platform hooks; reapply only after restoration.
-    bridge = sys.modules.get("astra_renpy_bridge")
+    bridge = sys.modules.get("shinki_renpy_bridge")
     if bridge is not None and bridge.session_active():
         bridge.install_hooks()
 

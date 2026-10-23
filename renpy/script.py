@@ -902,7 +902,7 @@ class Script(object):
 
                 if not renpy.macapp:
                     try:
-                        bridge = sys.modules.get("astra_renpy_bridge")
+                        bridge = sys.modules.get("shinki_renpy_bridge")
                         if bridge is not None and bridge.session_active():
                             rpycfn = bridge.generated_path(rpycfn)
                         with open(rpycfn, "wb") as f:

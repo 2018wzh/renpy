@@ -31,13 +31,13 @@ import warnings
 import os
 
 
-# Altered for AstraEMU: SDL owns a hidden GL context, Host owns the window.
-def _astra_embedded():
-    return int(_get_hint("renpy.pygame_astra_EMBEDDED", "0"))
+# Altered for ShinkiEMU: SDL owns a hidden GL context, Host owns the window.
+def _shinki_embedded():
+    return int(_get_hint("renpy.pygame_shinki_EMBEDDED", "0"))
 
-def _astra_window(kind, flags=0, text="", width=0, height=0, x=0, y=0):
-    import astra_renpy_bridge
-    return astra_renpy_bridge.window(kind, flags, text, width, height, x, y)
+def _shinki_window(kind, flags=0, text="", width=0, height=0, x=0, y=0):
+    import shinki_renpy_bridge
+    return shinki_renpy_bridge.window(kind, flags, text, width, height, x, y)
 # True if we are on ios.
 ios = ("PYGAME_IOS" in os.environ)
 
@@ -142,16 +142,16 @@ cdef class Window:
 
         if not isinstance(title, bytes):
             title = title.encode("utf-8")
-        if _astra_embedded():
-            _astra_window(1, text=title.decode("utf-8"))
-            _astra_window(2, 1 if flags & SDL_WINDOW_FULLSCREEN_DESKTOP else 0)
+        if _shinki_embedded():
+            _shinki_window(1, text=title.decode("utf-8"))
+            _shinki_window(2, 1 if flags & SDL_WINDOW_FULLSCREEN_DESKTOP else 0)
             if resolution[0] and resolution[1]:
-                _astra_window(6, width=resolution[0], height=resolution[1])
+                _shinki_window(6, width=resolution[0], height=resolution[1])
             if pos != (SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED):
-                _astra_window(7, x=pos[0], y=pos[1])
+                _shinki_window(7, x=pos[0], y=pos[1])
             if flags & SDL_WINDOW_MAXIMIZED:
-                import astra_renpy_bridge
-                astra_renpy_bridge.unsupported("maximize")
+                import shinki_renpy_bridge
+                shinki_renpy_bridge.unsupported("maximize")
 
 
         self.create_flags = flags
@@ -181,12 +181,12 @@ cdef class Window:
         if not self.window:
 
             flags |= SDL_WINDOW_HIDDEN
-            if _astra_embedded():
+            if _shinki_embedded():
                 flags &= ~(SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MAXIMIZED | SDL_WINDOW_SHOWN)
                 pos = (SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED)
                 if not resolution[0] or not resolution[1]:
-                    import astra_renpy_bridge
-                    resolution = astra_renpy_bridge.initial_size()
+                    import shinki_renpy_bridge
+                    resolution = shinki_renpy_bridge.initial_size()
 
             if shape is not None:
 
@@ -215,9 +215,9 @@ cdef class Window:
             if pos != (SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED):
                 SDL_SetWindowPosition(self.window, pos[0], pos[1])
 
-            # Astra owns presentation. Keep the native GL backing window hidden
+            # Shinki owns presentation. Keep the native GL backing window hidden
             # from its first creation; never show it and hide it afterwards.
-            if not int(_get_hint("renpy.pygame_astra_EMBEDDED", "0")):
+            if not int(_get_hint("renpy.pygame_shinki_EMBEDDED", "0")):
                 SDL_ShowWindow(self.window)
 
         if not self.window:
@@ -319,14 +319,14 @@ cdef class Window:
         if maximized is None:
             maximized = flags & SDL_WINDOW_MAXIMIZED
 
-        if _astra_embedded():
+        if _shinki_embedded():
             if size[0] and size[1]:
-                _astra_window(6, width=size[0], height=size[1])
+                _shinki_window(6, width=size[0], height=size[1])
             if fullscreen is not None:
-                _astra_window(2, 1 if fullscreen else 0)
+                _shinki_window(2, 1 if fullscreen else 0)
             if maximized:
-                import astra_renpy_bridge
-                astra_renpy_bridge.unsupported("maximize")
+                import shinki_renpy_bridge
+                shinki_renpy_bridge.unsupported("maximize")
             fullscreen = False
             maximized = False
 
@@ -343,7 +343,7 @@ cdef class Window:
         cdef int cur_width = 0
         cdef int cur_height = 0
 
-        if not _astra_embedded():
+        if not _shinki_embedded():
             if (not fullscreen) and (not maximized) and (flags & SDL_WINDOW_MAXIMIZED):
                 SDL_RestoreWindow(self.window)
 
@@ -356,9 +356,9 @@ cdef class Window:
 
         if (not fullscreen) and (not maximized):
 
-            if _astra_embedded() and (not size[0] or not size[1]):
-                import astra_renpy_bridge
-                size = astra_renpy_bridge.initial_size()
+            if _shinki_embedded() and (not size[0] or not size[1]):
+                import shinki_renpy_bridge
+                size = shinki_renpy_bridge.initial_size()
 
             width, height = size
 
@@ -399,9 +399,9 @@ cdef class Window:
 
     def get_window_flags(self):
         rv = SDL_GetWindowFlags(self.window)
-        if _astra_embedded():
+        if _shinki_embedded():
             rv &= ~(SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MAXIMIZED)
-            state = _astra_window(10)
+            state = _shinki_window(10)
             if state[0] == 0:
                 if state[1] & 8 and state[2]:
                     rv |= SDL_WINDOW_FULLSCREEN_DESKTOP
@@ -426,9 +426,9 @@ cdef class Window:
 
     def flip(self):
         cdef const char *err
-        if _astra_embedded():
-            import astra_renpy_bridge
-            astra_renpy_bridge.publish_frame()
+        if _shinki_embedded():
+            import shinki_renpy_bridge
+            shinki_renpy_bridge.publish_frame()
             return
 
 
@@ -457,7 +457,7 @@ cdef class Window:
     def update(self, rectangles=None):
 
         cdef SDL_Rect *rects
-        if _astra_embedded():
+        if _shinki_embedded():
             self.flip()
             return
 
@@ -495,26 +495,26 @@ cdef class Window:
         return { }
 
     def get_active(self):
-        if _astra_embedded():
-            import _astra
-            return _astra.active()
+        if _shinki_embedded():
+            import _shinki
+            return _shinki.active()
         if SDL_GetWindowFlags(self.window) & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED):
             return False
         else:
             return True
 
     def iconify(self):
-        if _astra_embedded():
-            return _astra_window(9, 1)[0] == 0
+        if _shinki_embedded():
+            return _shinki_window(9, 1)[0] == 0
         SDL_MinimizeWindow(self.window)
         return True
 
     def toggle_fullscreen(self):
-        if _astra_embedded():
-            state = _astra_window(10)
+        if _shinki_embedded():
+            state = _shinki_window(10)
             if state[0] != 0 or not state[1] & 8:
                 return False
-            return _astra_window(2, 0 if state[2] else 1)[0] == 0
+            return _shinki_window(2, 0 if state[2] else 1)[0] == 0
         if SDL_GetWindowFlags(self.window) & (SDL_WINDOW_FULLSCREEN_DESKTOP):
             if SDL_SetWindowFullscreen(self.window, 0):
                 raise error()
@@ -525,9 +525,9 @@ cdef class Window:
         return True
 
     def set_gamma(self, red, green=None, blue=None):
-        if _astra_embedded():
-            import astra_renpy_bridge
-            return astra_renpy_bridge.unsupported("gamma")
+        if _shinki_embedded():
+            import shinki_renpy_bridge
+            return shinki_renpy_bridge.unsupported("gamma")
         if green is None:
             green = red
         if blue is None:
@@ -547,9 +547,9 @@ cdef class Window:
         return True
 
     def set_gamma_ramp(self, red, green, blue):
-        if _astra_embedded():
-            import astra_renpy_bridge
-            return astra_renpy_bridge.unsupported("gamma ramp")
+        if _shinki_embedded():
+            import shinki_renpy_bridge
+            return shinki_renpy_bridge.unsupported("gamma ramp")
 
         cdef Uint16 red_gamma[256]
         cdef Uint16 green_gamma[256]
@@ -566,15 +566,15 @@ cdef class Window:
         return True
 
     def set_icon(self, Surface surface):
-        if _astra_embedded():
-            import astra_renpy_bridge
-            astra_renpy_bridge.unsupported("window icon")
+        if _shinki_embedded():
+            import shinki_renpy_bridge
+            shinki_renpy_bridge.unsupported("window icon")
         SDL_SetWindowIcon(self.window, surface.surface)
 
     def set_caption(self, title):
 
-        if _astra_embedded():
-            _astra_window(1, text=title.decode("utf-8") if isinstance(title, bytes) else title)
+        if _shinki_embedded():
+            _shinki_window(1, text=title.decode("utf-8") if isinstance(title, bytes) else title)
 
         if not isinstance(title, bytes):
             title = title.encode("utf-8")
@@ -590,8 +590,8 @@ cdef class Window:
 
     def get_size(self):
         cdef int w, h
-        if _astra_embedded():
-            state = _astra_window(10)
+        if _shinki_embedded():
+            state = _shinki_window(10)
             if state[0] == 0 and state[1] & 2:
                 return state[3], state[4]
             return None
@@ -600,18 +600,18 @@ cdef class Window:
         return w, h
 
     def restore(self):
-        if _astra_embedded():
-            return _astra_window(9, 0)[0] == 0
+        if _shinki_embedded():
+            return _shinki_window(9, 0)[0] == 0
         SDL_RestoreWindow(self.window)
 
     def maximize(self):
-        if _astra_embedded():
-            import astra_renpy_bridge
-            return astra_renpy_bridge.unsupported("maximize")
+        if _shinki_embedded():
+            import shinki_renpy_bridge
+            return shinki_renpy_bridge.unsupported("maximize")
         SDL_MaximizeWindow(self.window)
 
     def minimize(self):
-        if _astra_embedded():
+        if _shinki_embedded():
             return self.iconify()
         SDL_MinimizeWindow(self.window)
 
@@ -625,8 +625,8 @@ cdef class Window:
 
     def get_position(self):
         cdef int x, y
-        if _astra_embedded():
-            state = _astra_window(10)
+        if _shinki_embedded():
+            state = _shinki_window(10)
             if state[0] == 0 and state[1] & 4:
                 return state[5], state[6]
             return None
@@ -635,8 +635,8 @@ cdef class Window:
         return x, y
 
     def set_position(self, pos):
-        if _astra_embedded():
-            return _astra_window(7, x=pos[0], y=pos[1])[0] == 0
+        if _shinki_embedded():
+            return _shinki_window(7, x=pos[0], y=pos[1])[0] == 0
         SDL_SetWindowPosition(self.window, pos[0], pos[1])
 
 
@@ -693,9 +693,9 @@ def get_window():
     return main_window
 
 def flip():
-    if _astra_embedded():
-        import astra_renpy_bridge
-        astra_renpy_bridge.publish_frame()
+    if _shinki_embedded():
+        import shinki_renpy_bridge
+        shinki_renpy_bridge.publish_frame()
         return
     if main_window:
         main_window.flip()
@@ -958,9 +958,9 @@ def set_screensaver(state):
     """
     Sets the screenslaver to `state`.
     """
-    if _astra_embedded():
-        import astra_renpy_bridge
-        return astra_renpy_bridge.unsupported("screensaver")
+    if _shinki_embedded():
+        import shinki_renpy_bridge
+        return shinki_renpy_bridge.unsupported("screensaver")
 
 
     if state:

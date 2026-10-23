@@ -1,4 +1,4 @@
-"""AstraEMU platform boundary for the unmodified Ren'Py game/renderer ABI."""
+"""ShinkiEMU platform boundary for the unmodified Ren'Py game/renderer ABI."""
 
 import functools
 import hashlib
@@ -10,7 +10,7 @@ import threading
 import types
 import warnings
 
-import _astra
+import _shinki
 
 _RUNTIME = os.path.dirname(os.path.abspath(__file__))
 _active = False
@@ -49,12 +49,12 @@ def session_active():
 def unsupported(operation):
     if operation not in _warned:
         _warned.add(operation)
-        warnings.warn("AstraEMU Host does not support " + operation, RuntimeWarning, stacklevel=2)
+        warnings.warn("ShinkiEMU Host does not support " + operation, RuntimeWarning, stacklevel=2)
     return False
 
 
 def window(kind, flags=0, text="", width=0, height=0, x=0, y=0):
-    result = _astra.window(kind, flags, text, width, height, x, y)
+    result = _shinki.window(kind, flags, text, width, height, x, y)
     if result[0] == 5:  # Native Host cancellation is not an unsupported request.
         _check_cancelled()
     elif result[0] != 0:
@@ -86,7 +86,7 @@ def generated_path(filename):
 
 
 def _check_cancelled():
-    if _active and not _closing and _astra.cancelled():
+    if _active and not _closing and _shinki.cancelled():
         import renpy.game
         raise renpy.game.QuitException()
 
@@ -100,21 +100,21 @@ def _gate():
     # Interface polls events before constructing the renderer. A suspended open
     # must reach configure_surface before waiting for the Host to resume it.
     if not _surface_ready:
-        if _astra.paused():
+        if _shinki.paused():
             renpy.audio.audio.pause_all()
             _audio_paused = True
         return
-    if _astra.paused():
+    if _shinki.paused():
         renpy.audio.audio.pause_all()
         _audio_paused = True
-        while _astra.paused():
+        while _shinki.paused():
             _check_cancelled()
-            _pause_seconds = _astra.paused_seconds()
-            _astra.wait(10)
+            _pause_seconds = _shinki.paused_seconds()
+            _shinki.wait(10)
     if _audio_paused:
         renpy.audio.audio.unpause_all()
         _audio_paused = False
-    _pause_seconds = _astra.paused_seconds()
+    _pause_seconds = _shinki.paused_seconds()
     _check_cancelled()
 
 
@@ -126,7 +126,7 @@ def _pump():
     draw = renpy.display.draw
     if draw is None:
         return
-    _astra.pump_events(draw.draw_per_phys, draw.draw_per_phys)
+    _shinki.pump_events(draw.draw_per_phys, draw.draw_per_phys)
     _check_cancelled()
 
 
@@ -141,14 +141,14 @@ def publish_frame():
     _gate()
     from renpy.uguu import uguu as gl
     geometry = _geometry()
-    target = _astra.begin_frame(*geometry)
+    target = _shinki.begin_frame(*geometry)
     if target is None:
         return
     try:
         gl.glReadPixels(0, 0, geometry[0], geometry[1], gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, target)
-        _astra.end_frame()
+        _shinki.end_frame()
     except BaseException:
-        _astra.abort_frame()
+        _shinki.abort_frame()
         raise
     finally:
         target.release()
@@ -156,9 +156,9 @@ def publish_frame():
 
 def _replace(module, name, replacement):
     original = getattr(module, name)
-    if getattr(original, "_astra_hook", False):
+    if getattr(original, "_shinki_hook", False):
         return
-    replacement._astra_hook = True
+    replacement._shinki_hook = True
     _patches.append((module, name, original, replacement))
     setattr(module, name, replacement)
 
@@ -179,7 +179,7 @@ def _wait_event():
         event = _event_poll()
         if event.type != pygame.NOEVENT:
             return event
-        _astra.wait(5)
+        _shinki.wait(5)
 
 
 _event_poll = None
@@ -271,7 +271,7 @@ def install_hooks():
     renpy.config.logdir = os.path.join(_data_root, "logs")
     renpy.exports.__main__ = renpy.__main__
     renpy.loader.loadable_cache.clear()
-    pygame.display.hint("renpy.pygame_astra_EMBEDDED", "1")
+    pygame.display.hint("renpy.pygame_shinki_EMBEDDED", "1")
     if renpy.display.draw is None:
         _surface_ready = False
     if not renpy.display.im.cache.keep_preloading:
@@ -279,43 +279,43 @@ def install_hooks():
 
     for name in ("pump", "poll", "get", "peek", "clear"):
         original = getattr(pygame.event, name)
-        if name == "poll" and not getattr(original, "_astra_hook", False):
+        if name == "poll" and not getattr(original, "_shinki_hook", False):
             _event_poll = original
         _replace(pygame.event, name, _event_hook(original))
     _replace(pygame.event, "wait", _wait_event)
     _replace(pygame.event, "set_grab", _set_grab)
     _replace(pygame.event, "get_grab", lambda: False)
-    _replace(pygame.key, "get_focused", lambda: _astra.focused())
-    _replace(pygame.mouse, "get_focused", lambda: _astra.focused())
+    _replace(pygame.key, "get_focused", lambda: _shinki.focused())
+    _replace(pygame.mouse, "get_focused", lambda: _shinki.focused())
     _replace(pygame.mouse, "set_pos", _set_mouse_pos)
     _replace(pygame.mouse, "set_visible", _set_mouse_visible)
     _replace(renpy.editor, "launch_editor", _blocked_editor)
     _replace(renpy.exports, "launch_editor", _blocked_editor)
 
     original_time = core.get_time
-    if not getattr(original_time, "_astra_hook", False):
+    if not getattr(original_time, "_shinki_hook", False):
         def get_time():
             global _pause_seconds
             if threading.get_ident() == _owner and not _closing:
-                _pause_seconds = _astra.paused_seconds()
+                _pause_seconds = _shinki.paused_seconds()
             return original_time() - _pause_seconds * core.time_mult
         _replace(core, "get_time", get_time)
 
     original_mode = core.Interface.set_mode
-    if not getattr(original_mode, "_astra_hook", False):
+    if not getattr(original_mode, "_shinki_hook", False):
         def set_mode(interface):
             global _surface_ready
             result = original_mode(interface)
             if renpy.session.get("renderer") not in ("gl2", "angle2", "gles2"):
-                raise RuntimeError("AstraEMU requires the SDK GL2 renderer.")
-            _astra.configure_surface(*_geometry())
+                raise RuntimeError("ShinkiEMU requires the SDK GL2 renderer.")
+            _shinki.configure_surface(*_geometry())
             _surface_ready = True
             return result
         _replace(core.Interface, "set_mode", set_mode)
 
     # Gate before SDK render/update, as well as at event and publication boundaries.
     original_draw = core.Interface.draw_screen
-    if not getattr(original_draw, "_astra_hook", False):
+    if not getattr(original_draw, "_shinki_hook", False):
         def draw_screen(interface, *args, **kwargs):
             _pump()
             return original_draw(interface, *args, **kwargs)
@@ -416,7 +416,7 @@ def run_session(game_root, data_root):
     _pause_seconds = 0.0
     _module_baseline = None
     _warned.clear()
-    os.environ["renpy.pygame_astra_EMBEDDED"] = "1"
+    os.environ["renpy.pygame_shinki_EMBEDDED"] = "1"
     os.environ["RENPY_LOG_BASE"] = os.path.join(data_root, "logs")
     os.environ["RENPY_HIGHDPI"] = "1"
     os.environ["RENPY_NO_REDIRECT_STDIO"] = "1"
@@ -429,7 +429,7 @@ def run_session(game_root, data_root):
         renpy.session.clear()
         _reset_logs()
         # Load the SDK distributor entry, not any game's renamed launcher script.
-        spec = importlib.util.spec_from_file_location("_astra_renpy_entry", os.path.join(_RUNTIME, "renpy.py"))
+        spec = importlib.util.spec_from_file_location("_shinki_renpy_entry", os.path.join(_RUNTIME, "renpy.py"))
         entry = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(entry)
         entry.path_to_saves = lambda gamedir, save_directory=None: os.path.join(

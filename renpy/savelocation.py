@@ -699,7 +699,7 @@ def init():
     location_add(renpy.config.savedir)
 
     # 2. Game-local savedir.
-    bridge = sys.modules.get("astra_renpy_bridge")
+    bridge = sys.modules.get("shinki_renpy_bridge")
     embedded = bridge is not None and bridge.session_active()
     if (not renpy.mobile) and (not renpy.macapp) and not embedded:
         path = os.path.join(renpy.config.gamedir, "saves")

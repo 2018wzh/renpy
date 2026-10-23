@@ -1,4 +1,4 @@
-// AstraEMU ABI v3 adapter for the original Ren'Py runtime.
+// ShinkiEMU ABI v3 adapter for the original Ren'Py runtime.
 #define PY_SSIZE_T_CLEAN
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -6,7 +6,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include "vendor/astra-emu-abi/include/astra_emu.h"
+#include "vendor/shinki-emu-abi/include/shinki_emu.h"
 #include <Python.h>
 #include <SDL.h>
 #include <windows.h>
@@ -50,17 +50,17 @@ namespace {
 namespace fs = std::filesystem;
 using Clock = std::chrono::steady_clock;
 
-AstraEmuBytes bytes(const char *s) noexcept {
+ShinkiEmuBytes bytes(const char *s) noexcept {
   return {reinterpret_cast<const uint8_t *>(s), std::strlen(s)};
 }
-AstraEmuBytes bytes(const std::string &s) noexcept {
+ShinkiEmuBytes bytes(const std::string &s) noexcept {
   return {reinterpret_cast<const uint8_t *>(s.data()), s.size()};
 }
-void clear(AstraEmuError *e) noexcept {
+void clear(ShinkiEmuError *e) noexcept {
   if (e)
     *e = {};
 }
-AstraEmuStatus fail(AstraEmuError *e, AstraEmuStatus status, const char *code,
+ShinkiEmuStatus fail(ShinkiEmuError *e, ShinkiEmuStatus status, const char *code,
                     const char *message) noexcept {
   if (e) {
     *e = {};
@@ -82,52 +82,52 @@ AstraEmuStatus fail(AstraEmuError *e, AstraEmuStatus status, const char *code,
   return status;
 }
 struct Failure : std::runtime_error {
-  AstraEmuStatus status;
+  ShinkiEmuStatus status;
   const char *code;
-  Failure(AstraEmuStatus s, const char *c, const std::string &m)
+  Failure(ShinkiEmuStatus s, const char *c, const std::string &m)
       : std::runtime_error(m), status(s), code(c) {}
 };
 [[noreturn]] void invalid(const char *m) {
-  throw Failure(AstraEmuINVALID_ARGUMENT, "RENPY_INVALID_ARGUMENT", m);
+  throw Failure(ShinkiEmuINVALID_ARGUMENT, "RENPY_INVALID_ARGUMENT", m);
 }
-template <class F> AstraEmuStatus boundary(AstraEmuError *e, F &&f) noexcept {
+template <class F> ShinkiEmuStatus boundary(ShinkiEmuError *e, F &&f) noexcept {
   clear(e);
   try {
     return f();
   } catch (const Failure &x) {
     return fail(e, x.status, x.code, x.what());
   } catch (const std::bad_alloc &) {
-    return fail(e, AstraEmuCORE_ERROR, "RENPY_OUT_OF_MEMORY",
+    return fail(e, ShinkiEmuCORE_ERROR, "RENPY_OUT_OF_MEMORY",
                 "Native allocation failed");
   } catch (const std::exception &x) {
-    return fail(e, AstraEmuCORE_ERROR, "RENPY_NATIVE_ERROR", x.what());
+    return fail(e, ShinkiEmuCORE_ERROR, "RENPY_NATIVE_ERROR", x.what());
   } catch (...) {
-    return fail(e, AstraEmuPANICKED, "RENPY_NATIVE_EXCEPTION",
+    return fail(e, ShinkiEmuPANICKED, "RENPY_NATIVE_EXCEPTION",
                 "Unknown native exception");
   }
 }
 std::mutex diagnostics_mutex;
-AstraEmuDiagnostics diagnostics{};
+ShinkiEmuDiagnostics diagnostics{};
 void log(uint32_t level, const char *event,
          const std::string &message) noexcept {
-  AstraEmuDiagnostics sink;
+  ShinkiEmuDiagnostics sink;
   {
     std::lock_guard<std::mutex> l(diagnostics_mutex);
     sink = diagnostics;
   }
   if (!sink.emit)
     return;
-  const AstraEmuLogRecord record{
-      level, 0, bytes("astra.renpy"), bytes(event), bytes(message), nullptr, 0};
+  const ShinkiEmuLogRecord record{
+      level, 0, bytes("shinki.renpy"), bytes(event), bytes(message), nullptr, 0};
   try {
     sink.emit(sink.context, &record);
   } catch (...) {
   }
 }
-bool header(const AstraEmuHeader &h, size_t size) noexcept {
-  return h.version == AstraEmuABI_VERSION && h.size >= size;
+bool header(const ShinkiEmuHeader &h, size_t size) noexcept {
+  return h.version == ShinkiEmuABI_VERSION && h.size >= size;
 }
-std::string text(AstraEmuBytes b, size_t maximum, bool empty = true) {
+std::string text(ShinkiEmuBytes b, size_t maximum, bool empty = true) {
   if (b.len > maximum || (b.len && !b.data) || (!empty && !b.len))
     invalid("Invalid UTF-8 byte span");
   if (!b.len)
@@ -170,7 +170,7 @@ std::wstring path_key(const fs::path &p) {
                               value.data(), static_cast<int>(value.size()),
                               nullptr, 0, nullptr, nullptr, 0);
   if (!n)
-    throw Failure(AstraEmuCORE_ERROR, "RENPY_PATH_NORMALIZATION",
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PATH_NORMALIZATION",
                   "Cannot normalize game path");
   std::wstring result(n, L'\0');
   LCMapStringEx(LOCALE_NAME_INVARIANT, LCMAP_LOWERCASE, value.data(),
@@ -199,13 +199,13 @@ fs::path package_root() {
   if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                           reinterpret_cast<LPCWSTR>(&package_root), &module))
-    throw Failure(AstraEmuCORE_ERROR, "RENPY_MODULE_PATH",
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH",
                   "Cannot locate adapter DLL");
   std::vector<wchar_t> name(32768);
   const DWORD n =
       GetModuleFileNameW(module, name.data(), static_cast<DWORD>(name.size()));
   if (!n || n >= name.size())
-    throw Failure(AstraEmuCORE_ERROR, "RENPY_MODULE_PATH",
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH",
                   "Cannot read adapter DLL path");
   return fs::path(std::wstring(name.data(), n)).parent_path();
 }
@@ -252,8 +252,8 @@ struct Slot {
   std::atomic<uint32_t> references{1};
   std::unique_ptr<uint8_t[]> pixels;
   size_t size = 0;
-  AstraEmuSurfaceInfo info{};
-  AstraEmuFrameIdentity identity{};
+  ShinkiEmuSurfaceInfo info{};
+  ShinkiEmuFrameIdentity identity{};
   uint64_t timestamp = 0;
   bool writing = false;
   void release() noexcept {
@@ -266,7 +266,7 @@ void release_pixels(void *value) noexcept {
     static_cast<Slot *>(value)->release();
 }
 struct QueuedInput {
-  AstraEmuInputEvent event{};
+  ShinkiEmuInputEvent event{};
   std::string physical, logical;
 };
 struct Owner;
@@ -274,18 +274,18 @@ struct Session {
   std::mutex mutex;
   std::condition_variable changed;
   std::atomic<bool> cancel{false};
-  AstraEmuHostServices host{};
+  ShinkiEmuHostServices host{};
   Owner *owner = nullptr;
   uint64_t epoch = 0, context = 0, output = 0, generation = 0, request = 0,
            wake = 0;
   std::string game_root, data_root;
-  AstraEmuWindowState window{};
+  ShinkiEmuWindowState window{};
   bool user_paused = false, effective_pause = false, configured = false,
        done = false, failed = false;
   Clock::time_point pause_start{};
   double pause_total = 0;
-  AstraEmuError failure{};
-  AstraEmuSurfaceInfo surface{};
+  ShinkiEmuError failure{};
+  ShinkiEmuSurfaceInfo surface{};
   std::array<Slot *, 4> slots{};
   Slot *latest = nullptr, *pending = nullptr;
   std::vector<QueuedInput> inputs, pumping;
@@ -354,25 +354,25 @@ std::shared_ptr<Owner> owner_handle(void *p) {
 
 bool dimensions(int rw, int rh, int lw, int lh) noexcept {
   return rw > 0 && rh > 0 && lw > 0 && lh > 0 &&
-         rw <= AstraEmuMAX_RENDER_EXTENT && rh <= AstraEmuMAX_RENDER_EXTENT &&
-         lw <= AstraEmuMAX_RENDER_EXTENT && lh <= AstraEmuMAX_RENDER_EXTENT &&
-         static_cast<uint64_t>(rw) * rh * 4 <= AstraEmuMAX_FRAME_BYTES;
+         rw <= ShinkiEmuMAX_RENDER_EXTENT && rh <= ShinkiEmuMAX_RENDER_EXTENT &&
+         lw <= ShinkiEmuMAX_RENDER_EXTENT && lh <= ShinkiEmuMAX_RENDER_EXTENT &&
+         static_cast<uint64_t>(rw) * rh * 4 <= ShinkiEmuMAX_FRAME_BYTES;
 }
 void configure(Session &s, int rw, int rh, int lw, int lh) {
   if (!dimensions(rw, rh, lw, lh))
     invalid("Invalid renderer surface dimensions");
   if (s.pending)
-    throw Failure(AstraEmuINVALID_STATE, "RENPY_FRAME_IN_PROGRESS",
+    throw Failure(ShinkiEmuINVALID_STATE, "RENPY_FRAME_IN_PROGRESS",
                   "Cannot reconfigure a reserved frame");
   if (!s.configured || s.surface.raster.width != static_cast<uint32_t>(rw) ||
       s.surface.raster.height != static_cast<uint32_t>(rh) ||
       s.surface.logical.width != static_cast<uint32_t>(lw) ||
       s.surface.logical.height != static_cast<uint32_t>(lh)) {
-    s.surface = {AstraEmuSURFACE_CPU,
-                 AstraEmuPIXEL_RGBA8,
-                 AstraEmuCOLOR_SRGB,
-                 AstraEmuALPHA_IGNORED,
-                 AstraEmuROWS_BOTTOM_UP,
+    s.surface = {ShinkiEmuSURFACE_CPU,
+                 ShinkiEmuPIXEL_RGBA8,
+                 ShinkiEmuCOLOR_SRGB,
+                 ShinkiEmuALPHA_IGNORED,
+                 ShinkiEmuROWS_BOTTOM_UP,
                  {static_cast<uint32_t>(lw), static_cast<uint32_t>(lh)},
                  {static_cast<uint32_t>(rw), static_cast<uint32_t>(rh)},
                  static_cast<uint64_t>(rw) * 4};
@@ -384,7 +384,7 @@ void configure(Session &s, int rw, int rh, int lw, int lh) {
 }
 Session &python_session() {
   if (!current)
-    throw Failure(AstraEmuINVALID_STATE, "RENPY_NO_SESSION",
+    throw Failure(ShinkiEmuINVALID_STATE, "RENPY_NO_SESSION",
                   "No active Ren'Py session on this thread");
   return *current;
 }
@@ -511,7 +511,7 @@ PyObject *py_end_frame(PyObject *, PyObject *) {
     auto &s = python_session();
     std::lock_guard<std::mutex> lock(s.mutex);
     if (!s.pending)
-      throw Failure(AstraEmuINVALID_STATE, "RENPY_NO_FRAME_RESERVATION",
+      throw Failure(ShinkiEmuINVALID_STATE, "RENPY_NO_FRAME_RESERVATION",
                     "No frame is reserved");
     Slot *slot = s.pending;
     slot->info = s.surface;
@@ -711,19 +711,19 @@ PyObject *py_pump_events(PyObject *, PyObject *args) {
       const auto &event = item.event;
       if (s.cancelled())
         break;
-      if (event.kind == AstraEmuINPUT_WINDOW)
+      if (event.kind == ShinkiEmuINPUT_WINDOW)
         continue;
       if (event.displayed.output_epoch != output_epoch)
         continue;
-      if (event.kind == AstraEmuINPUT_KEY) {
+      if (event.kind == ShinkiEmuINPUT_KEY) {
         const auto code =
             scancode(item.physical.empty() ? item.logical : item.physical);
         if (code != SDL_SCANCODE_UNKNOWN)
           SDL_SendKeyboardKey(event.pressed ? SDL_PRESSED : SDL_RELEASED, code);
         if (event.pressed && logical_text(item.logical))
           send_text(item.logical);
-      } else if (event.kind == AstraEmuINPUT_POINTER_MOVE ||
-                 event.kind == AstraEmuINPUT_POINTER_BUTTON) {
+      } else if (event.kind == ShinkiEmuINPUT_POINTER_MOVE ||
+                 event.kind == ShinkiEmuINPUT_POINTER_BUTTON) {
         const double px = event.x / scale_x, py = event.y / scale_y;
         if (px < std::numeric_limits<int>::min() ||
             px > std::numeric_limits<int>::max() ||
@@ -732,15 +732,15 @@ PyObject *py_pump_events(PyObject *, PyObject *args) {
           invalid("Pointer coordinate exceeds SDL range");
         SDL_SendMouseMotion(window, 0, 0, static_cast<int>(px),
                             static_cast<int>(py));
-        if (event.kind == AstraEmuINPUT_POINTER_BUTTON) {
+        if (event.kind == ShinkiEmuINPUT_POINTER_BUTTON) {
           const Uint8 button =
-              event.button == AstraEmuBUTTON_PRIMARY     ? SDL_BUTTON_LEFT
-              : event.button == AstraEmuBUTTON_SECONDARY ? SDL_BUTTON_RIGHT
+              event.button == ShinkiEmuBUTTON_PRIMARY     ? SDL_BUTTON_LEFT
+              : event.button == ShinkiEmuBUTTON_SECONDARY ? SDL_BUTTON_RIGHT
                                                          : SDL_BUTTON_MIDDLE;
           SDL_SendMouseButton(
               window, 0, event.pressed ? SDL_PRESSED : SDL_RELEASED, button);
         }
-      } else if (event.kind == AstraEmuINPUT_WHEEL) {
+      } else if (event.kind == ShinkiEmuINPUT_WHEEL) {
         // SDK SDL owns accumulated fractional detents as well as preciseX/Y.
         SDL_SendMouseWheel(window, 0, static_cast<float>(event.x),
                            static_cast<float>(event.y), SDL_MOUSEWHEEL_NORMAL);
@@ -761,19 +761,19 @@ PyObject *py_window(PyObject *, PyObject *args, PyObject *kwargs) {
                                      const_cast<char **>(names), &kind, &flags,
                                      &value, &length, &width, &height, &x, &y))
       return nullptr;
-    if (kind < AstraEmuWINDOW_TITLE || kind > AstraEmuWINDOW_QUERY_STATE ||
+    if (kind < ShinkiEmuWINDOW_TITLE || kind > ShinkiEmuWINDOW_QUERY_STATE ||
         flags < 0 || width < 0 || height < 0)
       invalid("Invalid typed window request");
     const auto title = text(
         {reinterpret_cast<const uint8_t *>(value), static_cast<size_t>(length)},
-        AstraEmuMAX_MODAL_TEXT);
+        ShinkiEmuMAX_MODAL_TEXT);
     auto &s = python_session();
-    AstraEmuWindowResult result{};
-    AstraEmuStatus status = AstraEmuUNSUPPORTED;
+    ShinkiEmuWindowResult result{};
+    ShinkiEmuStatus status = ShinkiEmuUNSUPPORTED;
     if (s.cancelled())
-      status = AstraEmuCANCELLED;
+      status = ShinkiEmuCANCELLED;
     else if (s.host.window.request) {
-      AstraEmuWindowRequest request{};
+      ShinkiEmuWindowRequest request{};
       request.session_epoch = s.epoch;
       request.context_epoch = s.context;
       request.request_id = ++s.request;
@@ -784,17 +784,17 @@ PyObject *py_window(PyObject *, PyObject *args, PyObject *kwargs) {
       request.height = static_cast<uint32_t>(height);
       request.x = x;
       request.y = y;
-      AstraEmuError error{};
+      ShinkiEmuError error{};
       {
         AllowThreads released;
         status = s.host.window.request(s.host.window.context, &request, &result,
                                        &error);
       }
-      if (status != AstraEmuOK && status != AstraEmuCANCELLED)
-        log(AstraEmuLOG_WARN, "window.request_failed",
+      if (status != ShinkiEmuOK && status != ShinkiEmuCANCELLED)
+        log(ShinkiEmuLOG_WARN, "window.request_failed",
             "Host rejected Ren'Py window request kind=" + std::to_string(kind));
     }
-    if (status != AstraEmuOK)
+    if (status != ShinkiEmuOK)
       result = {};
     return Py_BuildValue("(iIIIIiiII)", status, result.valid_fields,
                          result.fullscreen, result.width, result.height,
@@ -802,7 +802,7 @@ PyObject *py_window(PyObject *, PyObject *args, PyObject *kwargs) {
   });
 }
 
-PyMethodDef astra_methods[] = {
+PyMethodDef shinki_methods[] = {
     {"cancelled", py_cancelled, METH_NOARGS, nullptr},
     {"paused", py_paused, METH_NOARGS, nullptr},
     {"paused_seconds", py_paused_seconds, METH_NOARGS, nullptr},
@@ -817,16 +817,16 @@ PyMethodDef astra_methods[] = {
     {"window", reinterpret_cast<PyCFunction>(py_window),
      METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}};
-PyModuleDef astra_module = {PyModuleDef_HEAD_INIT,
-                            "_astra",
+PyModuleDef shinki_module = {PyModuleDef_HEAD_INIT,
+                            "_shinki",
                             nullptr,
                             -1,
-                            astra_methods,
+                            shinki_methods,
                             nullptr,
                             nullptr,
                             nullptr,
                             nullptr};
-PyObject *PyInit__astra() { return PyModule_Create(&astra_module); }
+PyObject *PyInit__shinki() { return PyModule_Create(&shinki_module); }
 
 std::string python_error() {
   // Never PyErr_Print: its SystemExit handling can exit the embedding host.
@@ -868,7 +868,7 @@ std::string python_error() {
 }
 void check(PyStatus status) {
   if (PyStatus_Exception(status))
-    throw Failure(AstraEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION",
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION",
                   status.err_msg ? status.err_msg
                                  : "CPython initialization requested an exit");
 }
@@ -879,19 +879,19 @@ struct PythonConfig {
 };
 void initialize_python(bool &owns_python) {
   const fs::path root = package_root(), runtime = root / L"Resources";
-  if (!fs::is_regular_file(runtime / L"astra_renpy_bridge.py") ||
+  if (!fs::is_regular_file(runtime / L"shinki_renpy_bridge.py") ||
       !fs::is_regular_file(runtime / L"renpy" / L"__init__.py") ||
       !fs::is_regular_file(runtime / L"overrides" / L"display.pyd"))
     throw Failure(
-        AstraEmuCORE_ERROR, "RENPY_RUNTIME_MISSING",
+        ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING",
         "Packaged Ren'Py runtime, bridge or display override is missing");
   if (Py_IsInitialized())
     throw Failure(
-        AstraEmuINVALID_STATE, "RENPY_FOREIGN_INTERPRETER",
+        ShinkiEmuINVALID_STATE, "RENPY_FOREIGN_INTERPRETER",
         "SDK CPython was initialized outside the Ren'Py owner service");
-  if (PyImport_AppendInittab("_astra", &PyInit__astra) < 0)
-    throw Failure(AstraEmuCORE_ERROR, "RENPY_BUILTIN_REGISTRATION",
-                  "Cannot register the native _astra bridge");
+  if (PyImport_AppendInittab("_shinki", &PyInit__shinki) < 0)
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_BUILTIN_REGISTRATION",
+                  "Cannot register the native _shinki bridge");
   init_librenpy();
   PyPreConfig pre;
   PyPreConfig_InitIsolatedConfig(&pre);
@@ -912,7 +912,7 @@ void initialize_python(bool &owns_python) {
   const DWORD n = GetModuleFileNameW(nullptr, executable.data(),
                                      static_cast<DWORD>(executable.size()));
   if (!n || n >= executable.size())
-    throw Failure(AstraEmuCORE_ERROR, "RENPY_EXECUTABLE_PATH",
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_EXECUTABLE_PATH",
                   "Cannot locate host executable");
   check(PyConfig_SetString(&c, &c.program_name, executable.data()));
   check(PyConfig_SetString(&c, &c.executable, executable.data()));
@@ -936,7 +936,7 @@ void initialize_python(bool &owns_python) {
   Py_XDECREF(os);
   Py_XDECREF(platform);
   if (set < 0)
-    throw Failure(AstraEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION",
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION",
                   python_error());
 }
 
@@ -944,8 +944,8 @@ struct Service {
   std::mutex mutex;
   std::condition_variable changed;
   bool ready = false;
-  AstraEmuStatus initialization_status = AstraEmuOK;
-  AstraEmuError initialization_error{};
+  ShinkiEmuStatus initialization_status = ShinkiEmuOK;
+  ShinkiEmuError initialization_error{};
   bool occupied = false;
   std::shared_ptr<Session> queued;
   void work() noexcept {
@@ -956,11 +956,11 @@ struct Service {
       initialization_status =
           fail(&initialization_error, e.status, e.code, e.what());
     } catch (const std::exception &e) {
-      initialization_status = fail(&initialization_error, AstraEmuCORE_ERROR,
+      initialization_status = fail(&initialization_error, ShinkiEmuCORE_ERROR,
                                    "RENPY_OWNER_INITIALIZATION", e.what());
     } catch (...) {
       initialization_status =
-          fail(&initialization_error, AstraEmuPANICKED, "RENPY_OWNER_EXCEPTION",
+          fail(&initialization_error, ShinkiEmuPANICKED, "RENPY_OWNER_EXCEPTION",
                "Unknown interpreter initialization exception");
     }
     PyThreadState *python = nullptr;
@@ -971,7 +971,7 @@ struct Service {
       ready = true;
       changed.notify_all();
     }
-    if (initialization_status != AstraEmuOK)
+    if (initialization_status != ShinkiEmuOK)
       return;
     for (;;) {
       std::shared_ptr<Session> task;
@@ -983,11 +983,11 @@ struct Service {
       Session *s = task.get();
       PyEval_RestoreThread(python);
       current = s;
-      AstraEmuError error{};
+      ShinkiEmuError error{};
       bool failed = false;
       try {
         if (!s->cancelled()) {
-          PyObject *module = PyImport_ImportModule("astra_renpy_bridge");
+          PyObject *module = PyImport_ImportModule("shinki_renpy_bridge");
           PyObject *entry =
               module ? PyObject_GetAttrString(module, "run_session") : nullptr;
           PyObject *game =
@@ -1007,19 +1007,19 @@ struct Service {
           Py_XDECREF(module);
           if (!result) {
             const auto message = python_error();
-            fail(&error, AstraEmuCORE_ERROR, "RENPY_PYTHON_EXCEPTION",
+            fail(&error, ShinkiEmuCORE_ERROR, "RENPY_PYTHON_EXCEPTION",
                  message.c_str());
-            log(AstraEmuLOG_ERROR, "session.python_exception", message);
+            log(ShinkiEmuLOG_ERROR, "session.python_exception", message);
             failed = true;
           }
           Py_XDECREF(result);
         }
       } catch (const std::exception &e) {
-        fail(&error, AstraEmuCORE_ERROR, "RENPY_SESSION_EXCEPTION", e.what());
+        fail(&error, ShinkiEmuCORE_ERROR, "RENPY_SESSION_EXCEPTION", e.what());
         failed = true;
         PyErr_Clear();
       } catch (...) {
-        fail(&error, AstraEmuPANICKED, "RENPY_SESSION_EXCEPTION",
+        fail(&error, ShinkiEmuPANICKED, "RENPY_SESSION_EXCEPTION",
              "Unknown session exception");
         failed = true;
         PyErr_Clear();
@@ -1069,7 +1069,7 @@ std::shared_ptr<Service> interpreter_service() {
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                                 GET_MODULE_HANDLE_EX_FLAG_PIN,
                             reinterpret_cast<LPCWSTR>(&package_root), &pinned))
-      throw Failure(AstraEmuCORE_ERROR, "RENPY_MODULE_PIN",
+      throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PIN",
                     "Cannot retain the process-resident interpreter module");
     auto service = std::make_shared<Service>();
     std::thread worker([service] { service->work(); });
@@ -1078,7 +1078,7 @@ std::shared_ptr<Service> interpreter_service() {
   }
   std::unique_lock<std::mutex> service_lock(resident->mutex);
   resident->changed.wait(service_lock, [&] { return resident->ready; });
-  if (resident->initialization_status != AstraEmuOK) {
+  if (resident->initialization_status != ShinkiEmuOK) {
     const auto &e = resident->initialization_error;
     throw Failure(
         resident->initialization_status, "RENPY_OWNER_INITIALIZATION",
@@ -1101,42 +1101,42 @@ void finish_session(Session &s) {
   s.changed.wait(lock, [&] { return s.done; });
 }
 
-AstraEmuStatus initialize(const AstraEmuDiagnostics *sink,
-                          AstraEmuError *error) noexcept {
+ShinkiEmuStatus initialize(const ShinkiEmuDiagnostics *sink,
+                          ShinkiEmuError *error) noexcept {
   return boundary(error, [&] {
     if (!sink || !header(sink->header, sizeof(*sink)) || !sink->emit)
       invalid("Invalid diagnostic service header or callback");
     std::lock_guard<std::mutex> lock(diagnostics_mutex);
     diagnostics = *sink;
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-AstraEmuStatus describe(AstraEmuDescriptor *out,
-                        AstraEmuError *error) noexcept {
+ShinkiEmuStatus describe(ShinkiEmuDescriptor *out,
+                        ShinkiEmuError *error) noexcept {
   if (out)
     *out = {};
   return boundary(error, [&] {
     if (!out)
       invalid("Null descriptor output");
-    static const AstraEmuBytes formats[] = {bytes("rpy"), bytes("rpyc"),
+    static const ShinkiEmuBytes formats[] = {bytes("rpy"), bytes("rpyc"),
                                             bytes("rpa")};
-    static const AstraEmuConfigField data = [] {
-      AstraEmuConfigField field{};
+    static const ShinkiEmuConfigField data = [] {
+      ShinkiEmuConfigField field{};
       field.id = bytes("data_directory");
       field.label = bytes("Data directory");
       field.group = bytes("Storage");
-      field.default_value.kind = AstraEmuVALUE_STRING;
-      field.max_bytes = AstraEmuMAX_CONFIG_TEXT;
-      field.flags = AstraEmuCONFIG_FLAG_DIRECTORY_PATH;
+      field.default_value.kind = ShinkiEmuVALUE_STRING;
+      field.max_bytes = ShinkiEmuMAX_CONFIG_TEXT;
+      field.flags = ShinkiEmuCONFIG_FLAG_DIRECTORY_PATH;
       field.description = bytes("Private per-game saves, cache and logs. Empty "
                                 "uses the local application data directory.");
       return field;
     }();
-    *out = {{sizeof(*out), AstraEmuABI_VERSION},
+    *out = {{sizeof(*out), ShinkiEmuABI_VERSION},
             bytes("renpy"),
             bytes("renpy"),
             bytes("0.1.0"),
-            AstraEmuCAP_CPU_SURFACE,
+            ShinkiEmuCAP_CPU_SURFACE,
             formats,
             3,
             &data,
@@ -1144,11 +1144,11 @@ AstraEmuStatus describe(AstraEmuDescriptor *out,
             bytes("Ren'Py"),
             bytes("Ren'Py"),
             {}};
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-AstraEmuStatus probe(AstraEmuBytes path, AstraEmuProbeResult *out,
-                     AstraEmuError *error) noexcept {
+ShinkiEmuStatus probe(ShinkiEmuBytes path, ShinkiEmuProbeResult *out,
+                     ShinkiEmuError *error) noexcept {
   if (out)
     *out = {};
   return boundary(error, [&] {
@@ -1157,50 +1157,50 @@ AstraEmuStatus probe(AstraEmuBytes path, AstraEmuProbeResult *out,
     const fs::path root = canonical_directory(text(path, 131072, false));
     const auto detection = detect(root);
     if (!detection.matched)
-      return fail(error, AstraEmuNO_MATCH, "RENPY_NO_MATCH",
+      return fail(error, ShinkiEmuNO_MATCH, "RENPY_NO_MATCH",
                   "No Ren'Py script or archive signature found");
     static std::string id;
     id = "renpy-" + game_hash(root);
     *out = {bytes(id), bytes(detection.format), 10000, 0};
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-bool valid_window(const AstraEmuWindowState &w) noexcept {
+bool valid_window(const ShinkiEmuWindowState &w) noexcept {
   return w.focused <= 1 && w.suspended <= 1 && std::isfinite(w.scale_factor) &&
          w.scale_factor > 0 &&
          (w.suspended || (w.drawable_width && w.drawable_height));
 }
-fs::path data_directory(const AstraEmuOpenRequest &request,
+fs::path data_directory(const ShinkiEmuOpenRequest &request,
                         const fs::path &game) {
-  if (request.configuration_count > AstraEmuMAX_CONFIG_FIELDS ||
+  if (request.configuration_count > ShinkiEmuMAX_CONFIG_FIELDS ||
       (request.configuration_count && !request.configuration))
     invalid("Invalid configuration span");
   std::string directory;
   bool seen = false;
   for (size_t i = 0; i < request.configuration_count; ++i) {
     const auto &entry = request.configuration[i];
-    if (text(entry.id, AstraEmuMAX_CONFIG_TEXT, false) != "data_directory" ||
+    if (text(entry.id, ShinkiEmuMAX_CONFIG_TEXT, false) != "data_directory" ||
         seen)
       invalid("Unknown or duplicate Ren'Py configuration field");
     seen = true;
-    if (entry.value.kind != AstraEmuVALUE_STRING || entry.value.reserved ||
+    if (entry.value.kind != ShinkiEmuVALUE_STRING || entry.value.reserved ||
         entry.value.integer != 0 || entry.value.number != 0)
       invalid("data_directory requires a string value");
-    directory = text(entry.value.text, AstraEmuMAX_CONFIG_TEXT);
+    directory = text(entry.value.text, ShinkiEmuMAX_CONFIG_TEXT);
   }
   fs::path base;
   if (directory.empty()) {
     const DWORD size = GetEnvironmentVariableW(L"LOCALAPPDATA", nullptr, 0);
     if (!size)
-      throw Failure(AstraEmuCORE_ERROR, "RENPY_DATA_DIRECTORY",
+      throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY",
                     "LOCALAPPDATA is not available");
     std::vector<wchar_t> value(size);
     const DWORD length =
         GetEnvironmentVariableW(L"LOCALAPPDATA", value.data(), size);
     if (!length || length >= size)
-      throw Failure(AstraEmuCORE_ERROR, "RENPY_DATA_DIRECTORY",
+      throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY",
                     "Cannot read LOCALAPPDATA");
-    base = fs::path(value.data()) / L"AstraEMU" / L"renpy";
+    base = fs::path(value.data()) / L"ShinkiEMU" / L"renpy";
   } else
     base = fs::path(wide(directory));
   if (!base.is_absolute())
@@ -1223,11 +1223,11 @@ fs::path data_directory(const AstraEmuOpenRequest &request,
     invalid("Private data directory resolves into the game directory");
   return root;
 }
-AstraEmuStatus open(const AstraEmuOpenRequest *request, AstraEmuOpenResult *out,
-                    AstraEmuError *error) noexcept {
+ShinkiEmuStatus open(const ShinkiEmuOpenRequest *request, ShinkiEmuOpenResult *out,
+                    ShinkiEmuError *error) noexcept {
   if (out)
     *out = {};
-  return boundary(error, [&]() -> AstraEmuStatus {
+  return boundary(error, [&]() -> ShinkiEmuStatus {
     if (!request || !out || !header(request->header, sizeof(*request)) ||
         !header(request->host.header, sizeof(request->host)))
       invalid("Invalid open or host-service header");
@@ -1241,7 +1241,7 @@ AstraEmuStatus open(const AstraEmuOpenRequest *request, AstraEmuOpenResult *out,
     const auto root =
         canonical_directory(text(request->game_path, 131072, false));
     if (!detect(root).matched)
-      throw Failure(AstraEmuNO_MATCH, "RENPY_NO_MATCH",
+      throw Failure(ShinkiEmuNO_MATCH, "RENPY_NO_MATCH",
                     "No Ren'Py script or archive signature found");
     auto s = std::make_shared<Session>();
     s->owner = owner.get();
@@ -1252,13 +1252,13 @@ AstraEmuStatus open(const AstraEmuOpenRequest *request, AstraEmuOpenResult *out,
     s->update_pause();
     s->game_root = utf8(root);
     if (s->cancelled())
-      return fail(error, AstraEmuCANCELLED, "RENPY_OPEN_CANCELLED",
+      return fail(error, ShinkiEmuCANCELLED, "RENPY_OPEN_CANCELLED",
                   "Open was cancelled");
     auto service = owner->service;
     {
       std::lock_guard<std::mutex> lock(service->mutex);
       if (service->occupied)
-        throw Failure(AstraEmuINVALID_STATE, "RENPY_SESSION_BUSY",
+        throw Failure(ShinkiEmuINVALID_STATE, "RENPY_SESSION_BUSY",
                       "Only one Ren'Py session may be open in this process");
       service->occupied = true;
     }
@@ -1277,19 +1277,19 @@ AstraEmuStatus open(const AstraEmuOpenRequest *request, AstraEmuOpenResult *out,
       if (s->cancelled()) {
         lock.unlock();
         finish_session(*s);
-        return fail(error, AstraEmuCANCELLED, "RENPY_OPEN_CANCELLED",
+        return fail(error, ShinkiEmuCANCELLED, "RENPY_OPEN_CANCELLED",
                     "Open was cancelled");
       }
       if (s->done) {
         if (s->failed) {
           if (error)
             *error = s->failure;
-          return AstraEmuCORE_ERROR;
+          return ShinkiEmuCORE_ERROR;
         }
-        return fail(error, AstraEmuCORE_ERROR, "RENPY_NO_SURFACE",
+        return fail(error, ShinkiEmuCORE_ERROR, "RENPY_NO_SURFACE",
                     "Ren'Py exited before configuring a renderer surface");
       }
-      const AstraEmuOpenResult result{s.get(), s->context, s->output,
+      const ShinkiEmuOpenResult result{s.get(), s->context, s->output,
                                       s->surface};
       lock.unlock();
       {
@@ -1302,33 +1302,33 @@ AstraEmuStatus open(const AstraEmuOpenRequest *request, AstraEmuOpenResult *out,
           sessions.erase(s.get());
         }
         finish_session(*s);
-        return fail(error, AstraEmuCANCELLED, "RENPY_OPEN_CANCELLED",
+        return fail(error, ShinkiEmuCANCELLED, "RENPY_OPEN_CANCELLED",
                     "Open was cancelled");
       }
       admission.retained = true;
       *out = result;
-      return AstraEmuOK;
+      return ShinkiEmuOK;
     } catch (...) {
       finish_session(*s);
       throw;
     }
   });
 }
-AstraEmuStatus input(AstraEmuSession value, const AstraEmuInputEvent *events,
-                     size_t count, AstraEmuError *error) noexcept {
-  return boundary(error, [&]() -> AstraEmuStatus {
+ShinkiEmuStatus input(ShinkiEmuSession value, const ShinkiEmuInputEvent *events,
+                     size_t count, ShinkiEmuError *error) noexcept {
+  return boundary(error, [&]() -> ShinkiEmuStatus {
     auto s = session_handle(value);
     if (count > 65536 || (count && !events))
       invalid("Invalid input event span");
     std::lock_guard<std::mutex> lock(s->mutex);
     if (s->done)
-      return fail(error, AstraEmuINVALID_STATE, "RENPY_SESSION_ENDED",
+      return fail(error, ShinkiEmuINVALID_STATE, "RENPY_SESSION_ENDED",
                   "Session has ended");
     if (s->cancelled())
-      return fail(error, AstraEmuCANCELLED, "RENPY_SESSION_CANCELLED",
+      return fail(error, ShinkiEmuCANCELLED, "RENPY_SESSION_CANCELLED",
                   "Session is cancelled");
     if (s->inputs.size() + count > 65536)
-      return fail(error, AstraEmuCAPACITY, "RENPY_INPUT_CAPACITY",
+      return fail(error, ShinkiEmuCAPACITY, "RENPY_INPUT_CAPACITY",
                   "Input queue is full");
     const size_t original = s->inputs.size();
     struct Rollback {
@@ -1346,15 +1346,15 @@ AstraEmuStatus input(AstraEmuSession value, const AstraEmuInputEvent *events,
                      (std::max)(original + count, s->inputs.capacity() * 2)));
     for (size_t i = 0; i < count; ++i) {
       const auto &event = events[i];
-      if (event.kind < AstraEmuINPUT_KEY || event.kind > AstraEmuINPUT_WINDOW ||
+      if (event.kind < ShinkiEmuINPUT_KEY || event.kind > ShinkiEmuINPUT_WINDOW ||
           event.pressed > 1 || event.repeat > 1 ||
           (event.repeat && !event.pressed) || !std::isfinite(event.x) ||
           !std::isfinite(event.y))
         invalid("Invalid input event");
       QueuedInput item;
       item.event = event;
-      item.physical = text(event.physical_key, AstraEmuMAX_CONFIG_TEXT);
-      item.logical = text(event.logical_key, AstraEmuMAX_CONFIG_TEXT);
+      item.physical = text(event.physical_key, ShinkiEmuMAX_CONFIG_TEXT);
+      item.logical = text(event.logical_key, ShinkiEmuMAX_CONFIG_TEXT);
       for (size_t j = 0; j < item.logical.size(); ++j) {
         const auto ch = static_cast<unsigned char>(item.logical[j]);
         if (ch < 32 || ch == 127 ||
@@ -1365,7 +1365,7 @@ AstraEmuStatus input(AstraEmuSession value, const AstraEmuInputEvent *events,
       }
       item.event.physical_key = {};
       item.event.logical_key = {};
-      if (event.kind == AstraEmuINPUT_WINDOW) {
+      if (event.kind == ShinkiEmuINPUT_WINDOW) {
         if (!valid_window(event.window))
           invalid("Invalid Host window state");
       } else {
@@ -1373,16 +1373,16 @@ AstraEmuStatus input(AstraEmuSession value, const AstraEmuInputEvent *events,
             event.displayed.output_epoch != s->output ||
             !event.displayed.generation ||
             event.displayed.generation > s->generation)
-          return fail(error, AstraEmuSTALE_CONTEXT, "RENPY_STALE_INPUT",
+          return fail(error, ShinkiEmuSTALE_CONTEXT, "RENPY_STALE_INPUT",
                       "Input refers to a stale or unpublished frame");
-        if (event.kind == AstraEmuINPUT_POINTER_BUTTON &&
-            (event.button < AstraEmuBUTTON_PRIMARY ||
-             event.button > AstraEmuBUTTON_MIDDLE))
+        if (event.kind == ShinkiEmuINPUT_POINTER_BUTTON &&
+            (event.button < ShinkiEmuBUTTON_PRIMARY ||
+             event.button > ShinkiEmuBUTTON_MIDDLE))
           invalid("Unknown pointer button");
-        if (event.kind == AstraEmuINPUT_WHEEL &&
+        if (event.kind == ShinkiEmuINPUT_WHEEL &&
             (std::abs(event.x) > 1000000 || std::abs(event.y) > 1000000))
           invalid("Wheel detents exceed SDL range");
-        if (event.kind == AstraEmuINPUT_KEY && item.physical.empty() &&
+        if (event.kind == ShinkiEmuINPUT_KEY && item.physical.empty() &&
             item.logical.empty())
           invalid("Key input contains no key or text");
       }
@@ -1390,38 +1390,38 @@ AstraEmuStatus input(AstraEmuSession value, const AstraEmuInputEvent *events,
     }
     // Commit Host state only after validating the complete batch.
     for (size_t i = original; i < s->inputs.size(); ++i) {
-      if (s->inputs[i].event.kind == AstraEmuINPUT_WINDOW) {
+      if (s->inputs[i].event.kind == ShinkiEmuINPUT_WINDOW) {
         s->window = s->inputs[i].event.window;
         s->update_pause();
       }
     }
     rollback.committed = true;
     s->signal();
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-AstraEmuStatus control(AstraEmuSession value, uint32_t command,
-                       AstraEmuError *error) noexcept {
-  return boundary(error, [&]() -> AstraEmuStatus {
+ShinkiEmuStatus control(ShinkiEmuSession value, uint32_t command,
+                       ShinkiEmuError *error) noexcept {
+  return boundary(error, [&]() -> ShinkiEmuStatus {
     auto s = session_handle(value);
     std::lock_guard<std::mutex> lock(s->mutex);
     if (s->done)
-      return fail(error, AstraEmuINVALID_STATE, "RENPY_SESSION_ENDED",
+      return fail(error, ShinkiEmuINVALID_STATE, "RENPY_SESSION_ENDED",
                   "Session has ended");
     if (s->cancelled())
-      return fail(error, AstraEmuCANCELLED, "RENPY_SESSION_CANCELLED",
+      return fail(error, ShinkiEmuCANCELLED, "RENPY_SESSION_CANCELLED",
                   "Session is cancelled");
-    if (command != AstraEmuCONTROL_PAUSE && command != AstraEmuCONTROL_RESUME)
-      return fail(error, AstraEmuUNSUPPORTED, "RENPY_CONTROL_UNSUPPORTED",
+    if (command != ShinkiEmuCONTROL_PAUSE && command != ShinkiEmuCONTROL_RESUME)
+      return fail(error, ShinkiEmuUNSUPPORTED, "RENPY_CONTROL_UNSUPPORTED",
                   "Ren'Py supports pause and resume controls only");
-    s->user_paused = command == AstraEmuCONTROL_PAUSE;
+    s->user_paused = command == ShinkiEmuCONTROL_PAUSE;
     s->update_pause();
     s->signal();
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-AstraEmuStatus state(AstraEmuSession value, AstraEmuSessionState *out,
-                     AstraEmuError *error) noexcept {
+ShinkiEmuStatus state(ShinkiEmuSession value, ShinkiEmuSessionState *out,
+                     ShinkiEmuError *error) noexcept {
   if (out)
     *out = {};
   return boundary(error, [&] {
@@ -1431,39 +1431,39 @@ AstraEmuStatus state(AstraEmuSession value, AstraEmuSessionState *out,
     std::lock_guard<std::mutex> lock(s->mutex);
     out->context_epoch = s->context;
     out->output_epoch = s->output;
-    out->state = s->failed            ? AstraEmuSESSION_FAILED
-                 : s->done            ? AstraEmuSESSION_FINISHED
-                 : s->effective_pause ? AstraEmuSESSION_PAUSED
-                                      : AstraEmuSESSION_RUNNING;
+    out->state = s->failed            ? ShinkiEmuSESSION_FAILED
+                 : s->done            ? ShinkiEmuSESSION_FINISHED
+                 : s->effective_pause ? ShinkiEmuSESSION_PAUSED
+                                      : ShinkiEmuSESSION_RUNNING;
     if (s->failed)
       out->error = s->failure;
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-AstraEmuStatus frame(AstraEmuSession value, AstraEmuFrameIdentity since,
-                     AstraEmuFrameSurface *out, AstraEmuError *error) noexcept {
+ShinkiEmuStatus frame(ShinkiEmuSession value, ShinkiEmuFrameIdentity since,
+                     ShinkiEmuFrameSurface *out, ShinkiEmuError *error) noexcept {
   if (out)
     *out = {};
-  return boundary(error, [&]() -> AstraEmuStatus {
+  return boundary(error, [&]() -> ShinkiEmuStatus {
     if (!out)
       invalid("Null frame output");
     auto s = session_handle(value);
     std::lock_guard<std::mutex> lock(s->mutex);
     if ((since.session_epoch && since.session_epoch != s->epoch) ||
         since.output_epoch > s->output || since.generation > s->generation)
-      return fail(error, AstraEmuSTALE_CONTEXT, "RENPY_STALE_FRAME",
+      return fail(error, ShinkiEmuSTALE_CONTEXT, "RENPY_STALE_FRAME",
                   "Frame identity does not belong to this session");
     if (s->failed) {
       if (error)
         *error = s->failure;
-      return AstraEmuCORE_ERROR;
+      return ShinkiEmuCORE_ERROR;
     }
-    AstraEmuFrameSurface result{};
+    ShinkiEmuFrameSurface result{};
     result.info = s->surface;
     result.identity = {s->epoch, s->output, s->generation};
     Slot *slot = s->latest;
     if (!slot)
-      result.state = AstraEmuFRAME_PENDING;
+      result.state = ShinkiEmuFRAME_PENDING;
     else {
       result.identity = slot->identity;
       result.info = slot->info;
@@ -1471,24 +1471,24 @@ AstraEmuStatus frame(AstraEmuSession value, AstraEmuFrameIdentity since,
       if (since.session_epoch == slot->identity.session_epoch &&
           since.output_epoch == slot->identity.output_epoch &&
           since.generation == slot->identity.generation)
-        result.state = AstraEmuFRAME_UNCHANGED;
+        result.state = ShinkiEmuFRAME_UNCHANGED;
       else {
         slot->references.fetch_add(1, std::memory_order_relaxed);
-        result.state = AstraEmuFRAME_READY;
+        result.state = ShinkiEmuFRAME_READY;
         result.cpu = {{slot->pixels.get(), slot->size}, slot, release_pixels};
       }
     }
     *out = result;
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-void cancel(AstraEmuSession value) noexcept {
+void cancel(ShinkiEmuSession value) noexcept {
   // Host retains the handle until all concurrent cancellation calls return.
   if (value)
     cancel_session(*static_cast<Session *>(value));
 }
-AstraEmuStatus close(AstraEmuSession value, AstraEmuError *error) noexcept {
-  return boundary(error, [&]() -> AstraEmuStatus {
+ShinkiEmuStatus close(ShinkiEmuSession value, ShinkiEmuError *error) noexcept {
+  return boundary(error, [&]() -> ShinkiEmuStatus {
     auto s = session_handle(value);
     {
       std::lock_guard<std::mutex> lock(handles_mutex);
@@ -1503,13 +1503,13 @@ AstraEmuStatus close(AstraEmuSession value, AstraEmuError *error) noexcept {
     if (s->failed) {
       if (error)
         *error = s->failure;
-      return AstraEmuCORE_ERROR;
+      return ShinkiEmuCORE_ERROR;
     }
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-AstraEmuStatus create_owner(AstraEmuModuleOwner *out,
-                            AstraEmuError *error) noexcept {
+ShinkiEmuStatus create_owner(ShinkiEmuModuleOwner *out,
+                            ShinkiEmuError *error) noexcept {
   if (out)
     *out = nullptr;
   return boundary(error, [&] {
@@ -1520,12 +1520,12 @@ AstraEmuStatus create_owner(AstraEmuModuleOwner *out,
     std::lock_guard<std::mutex> lock(handles_mutex);
     owners.emplace(owner.get(), owner);
     *out = owner.get();
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-AstraEmuStatus destroy_owner(AstraEmuModuleOwner value,
-                             AstraEmuError *error) noexcept {
-  return boundary(error, [&]() -> AstraEmuStatus {
+ShinkiEmuStatus destroy_owner(ShinkiEmuModuleOwner value,
+                             ShinkiEmuError *error) noexcept {
+  return boundary(error, [&]() -> ShinkiEmuStatus {
     auto owner = owner_handle(value);
     std::shared_ptr<Session> retained;
     {
@@ -1547,27 +1547,27 @@ AstraEmuStatus destroy_owner(AstraEmuModuleOwner value,
       std::lock_guard<std::mutex> lock(owner->service->mutex);
       owner->service->occupied = false;
     }
-    return AstraEmuOK;
+    return ShinkiEmuOK;
   });
 }
-const AstraEmuModuleOwnerApi owner_api{
-    {sizeof(AstraEmuModuleOwnerApi), AstraEmuMODULE_OWNER_VERSION},
+const ShinkiEmuModuleOwnerApi owner_api{
+    {sizeof(ShinkiEmuModuleOwnerApi), ShinkiEmuMODULE_OWNER_VERSION},
     create_owner,
     destroy_owner};
-AstraEmuStatus extension(AstraEmuBytes name, uint32_t version,
+ShinkiEmuStatus extension(ShinkiEmuBytes name, uint32_t version,
                          const void **out) noexcept {
   if (!out)
-    return AstraEmuINVALID_ARGUMENT;
+    return ShinkiEmuINVALID_ARGUMENT;
   *out = nullptr;
-  constexpr char id[] = "astra.module_owner";
+  constexpr char id[] = "shinki.module_owner";
   if (!name.data || name.len != sizeof(id) - 1 ||
       std::memcmp(name.data, id, sizeof(id) - 1) != 0 ||
-      version != AstraEmuMODULE_OWNER_VERSION)
-    return AstraEmuUNSUPPORTED;
+      version != ShinkiEmuMODULE_OWNER_VERSION)
+    return ShinkiEmuUNSUPPORTED;
   *out = &owner_api;
-  return AstraEmuOK;
+  return ShinkiEmuOK;
 }
-const AstraEmuCoreApi api{{sizeof(AstraEmuCoreApi), AstraEmuABI_VERSION},
+const ShinkiEmuCoreApi api{{sizeof(ShinkiEmuCoreApi), ShinkiEmuABI_VERSION},
                           initialize,
                           describe,
                           probe,
@@ -1581,13 +1581,13 @@ const AstraEmuCoreApi api{{sizeof(AstraEmuCoreApi), AstraEmuABI_VERSION},
                           extension};
 } // namespace
 
-extern "C" __declspec(dllexport) AstraEmuStatus
-astra_emu_query(uint32_t version, const AstraEmuCoreApi **out) noexcept {
+extern "C" __declspec(dllexport) ShinkiEmuStatus
+shinki_emu_query(uint32_t version, const ShinkiEmuCoreApi **out) noexcept {
   if (!out)
-    return AstraEmuINVALID_ARGUMENT;
+    return ShinkiEmuINVALID_ARGUMENT;
   *out = nullptr;
-  if (version != AstraEmuABI_VERSION)
-    return AstraEmuUNSUPPORTED;
+  if (version != ShinkiEmuABI_VERSION)
+    return ShinkiEmuUNSUPPORTED;
   *out = &api;
-  return AstraEmuOK;
+  return ShinkiEmuOK;
 }

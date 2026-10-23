@@ -191,13 +191,13 @@ For the complete licensing terms, please read:
 https://www.renpy.org/doc/html/license.html
 
 
-AstraEMU 原生接入
+ShinkiEMU 原生接入
 ================
 
-``astra`` 分支基于官方 ``8.5.3.26051504``，上游提交
+``shinki`` 分支基于官方 ``8.5.3.26051504``，上游提交
 ``39895c1e017f0b36ffea2447d97eccd69d76ee1c``。适配包为
-``astra-emu-renpy``，plugin/family ID 均为 ``renpy``，当前构建目标为
-Windows x64，导出 AstraEMU C ABI v3。
+``shinki-emu-renpy``，plugin/family ID 均为 ``renpy``，当前构建目标为
+Windows x64，导出 ShinkiEMU C ABI v3。
 
 执行、Screen Language、ATL、GL2、音视频、回滚及存档全部使用原 Ren'Py。
 不另写 ``.rpy/.rpyc`` 解释器，也不启动游戏子进程。官方 CPython 3.12.7
@@ -215,24 +215,36 @@ Manager 是最终呈现者。输入进入同一 SDK 的 SDL 状态与事件队�
 
 需要 MSVC x64、CMake/Ninja、构建用 Python 3.11+ 与 Cython 3.2.4、CPython
 3.12.7 开发头、SDL 2.0.20 头，以及官方 Ren'Py 8.5.3 SDK。源码与原生 SDK
-必须匹配；``astra/sdk.json`` 记录来源、ZIP 校验和及五个原生 DLL 的固定
+必须匹配；``shinki/sdk.json`` 记录来源、ZIP 校验和及五个原生 DLL 的固定
 SHA256，构建入口拒绝不匹配的原生库。MSVC 导入库由官方 MinGW DLL 的
 导出生成，不加载第二份 Python 或 SDL。
 
-在已加载 MSVC x64 环境的 shell 中执行::
+在 MSVC x64 Developer Command Prompt 中进入 ShinkiEMU 仓库后执行
+（Ninja 可避免 MSBuild 的深层中间文件路径限制）::
 
-    cmake -S astra -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DPython3_EXECUTABLE="$CYTHON_PYTHON" \
-      -DRENPY_SDK_ROOT="$RENPY_SDK" \
-      -DRENPY_PYTHON_DEV="$PYTHON_DEV_ROOT" \
-      -DRENPY_SDL_INCLUDE="$SDL_INCLUDE"
-    cmake --build "$BUILD"
-    cmake --install "$BUILD" --prefix "$CORE_OUTPUT"
+    set CMAKE_GENERATOR=Ninja
+    cargo xtask deps --target x86_64-pc-windows-msvc --core renpy
+    cargo xtask build --target x86_64-pc-windows-msvc --core renpy --release
 
-``PYTHON_DEV_ROOT`` 下应有 ``include/Python.h``，``SDL_INCLUDE`` 下应有
-``SDL.h``。产物为根目录 ``astra_emu_renpy.dll``、官方原生依赖及 ``Resources/``。
-后者包含本 fork 的 Python/common 资源、官方标准库和 display override；
-不能只复制核心 DLL。Host 必须使用 ``astra.module_owner`` v1 扩展。
+独立 Cargo 入口为 ``shinki/Cargo.toml``。``build.rs`` 验证官方 DLL 的
+SHA256，从 DLL 导出生成 MSVC 导入库，再运行 CMake/Cython 编译和安装。
+原生构建、安装目录与 ``core-build.json`` 都位于 Cargo 的 ``OUT_DIR``；
+构建脚本不联网、不安装工具，也不递归调用 Cargo。
+
+直接构建 adapter 时，调用者须提供 ``RENPY_SDK_ROOT``、
+``RENPY_PYTHON_DEV``、``RENPY_SDL_INCLUDE``、``Python3_EXECUTABLE`` 和
+``RENPY_CYTHON_LICENSE``。分别指向固定版本的 SDK、含
+``include/Python.h`` 与 ``LICENSE.txt`` 的 CPython 开发根、含 ``SDL.h``
+的 SDL 头目录、装有 Cython 3.2.4 的构建解释器，以及该 Cython 源发行版的
+``LICENSE.txt``（同目录还须有 ``COPYING.txt``）。缺少依赖会直接报错。
+CMake 原生构建最多使用四个并行任务。
+
+``core-build.json`` 指向真实 ``shinki_emu_renpy.dll``，并记录完整
+``Resources/`` 与 Ren'Py、CPython、Cython、pthread、adapter 的许可。
+官方五个运行时 DLL 安装在核心旁，由打包工具收集原生依赖；``Resources/``
+包含本 fork 的 Python/common 资源、官方标准库、桥接脚本和重编译的
+``overrides/display.pyd``，不能只复制核心 DLL。
+Host 必须使用 ``shinki.module_owner`` v1 扩展。
 
 运行与资源转换
 --------------
@@ -241,11 +253,11 @@ SHA256，构建入口拒绝不匹配的原生库。MSVC 导入库由官方 MinGW
 数据目录。核心按规范游戏路径分配独立子目录，保存、日志和生成缓存都不写回
 原安装。载入失败保留原资源，不从原游戏存档目录合并数据。
 
-核心保留官方 RPA 索引格式。发行版自定义封装通过 AstraEMU 的显式 Luau
+核心保留官方 RPA 索引格式。发行版自定义封装通过 ShinkiEMU 的显式 Luau
 离线补丁转换为标准资源；本核心没有索引列顺序配置、游戏名判断或替代
 archive loader。转换产物使用官方路径读取，播放时不加载转换脚本。
 
-公开 ``astra/fixtures/smoke`` 项目走生产 C ABI 验证了菜单、鼠标/键盘、
+公开 ``shinki/fixtures/smoke`` 项目走生产 C ABI 验证了菜单、鼠标/键盘、
 Unicode 输入、原生存读档、ATL 暂停恢复、初始挂起、关闭后 lease、
 同进程重开、owner 重建，以及阻塞窗口请求取消后再次打开。
 这些结果不等于所有 Ren'Py 版本、第三方扩展或完整游戏路线均兼容。
@@ -264,7 +276,7 @@ Unicode 输入、原生存读档、ATL 暂停恢复、初始挂起、关闭后 l
 ----------
 
 原 Ren'Py 及组件继续使用原许可；适配代码及共享 ABI 的 MIT 许可见
-``astra/LICENSE``。安装目录附官方完整 ``LICENSE.txt``、pthread 说明和来源
+``shinki/LICENSE``。安装目录附官方完整 ``LICENSE.txt``、pthread 说明和来源
 清单；SDK 的 LGPL 组件仍有对应源码与重新链接义务。
 不打包 Steam、Cubism、Bink、nvdrs 或微软 D3DCompiler 再发行 DLL。
 ANGLE 如需 D3DCompiler，使用 Windows 系统组件。商业资源、存档与验证画面

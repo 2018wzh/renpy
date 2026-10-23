@@ -574,7 +574,7 @@ class StringTranslator(object):
             fn = os.path.join(renpy.config.gamedir, "strings.rpy")
         else:
             fn = os.path.join(renpy.config.gamedir, renpy.config.tl_directory, language, "strings.rpy")
-        bridge = sys.modules.get("astra_renpy_bridge")
+        bridge = sys.modules.get("shinki_renpy_bridge")
         if bridge is not None and bridge.session_active():
             fn = bridge.generated_path(fn)
 

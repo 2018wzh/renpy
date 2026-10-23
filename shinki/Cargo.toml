@@ -1,0 +1,28 @@
+[package]
+name = "shinki-emu-renpy"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.92"
+license = "MIT"
+publish = false
+build = "build.rs"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+shinki-emu-abi = { git = "https://github.com/Project-Shinkirou/ShinkiEMU", rev = "035155c78761768bc088169a4eca982f82e9d577" }
+
+[build-dependencies]
+anyhow = "1"
+serde_json = "1"
+sha2 = "0.10"
+shinki-emu-build = { git = "https://github.com/Project-Shinkirou/ShinkiEMU", rev = "035155c78761768bc088169a4eca982f82e9d577" }
+
+[workspace]
+
+[package.metadata.shinki]
+upstream = "https://github.com/renpy/renpy"
+upstream_revision = "39895c1e017f0b36ffea2447d97eccd69d76ee1c"
+hosted_fork = "https://github.com/Project-Shinkirou/renpy"
+hosted_fork_branch = "shinki"

@@ -7,7 +7,7 @@
   "python": "3.12.7",
   "cython": "3.2.4",
   "sdl": "2.0.20",
-  "abi_revision": "6d9d691dcc8f3d768e40b5be1d6f37366cca62d8",
+  "abi_revision": "035155c78761768bc088169a4eca982f82e9d577",
   "windows_x86_64": {
     "libpython3.12.dll": "e964c5a8decf29db4cff43f5eb268f711b8a89e83375b44c14e6fcc2171d5e18",
     "librenpython.dll": "36c48e7659c78a2223b4f69467eaeada71b995fd381a56264bf370fe67ddd757",
