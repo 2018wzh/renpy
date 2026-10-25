@@ -9,7 +9,12 @@
       "file_name": "future-1.0.0.tar.gz",
       "url": "https://files.pythonhosted.org/packages/a7/b2/4140c69c6a66432916b26158687e821ba631a4c9273c474343badf84d3ba/future-1.0.0.tar.gz",
       "sha256": "bd2968309307861edae1458a4f8a4f3598c03be43b97521076aebf5d94c07b05",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "future-1.0.0-py3-none-any.whl",
+        "sha256": "929292d34f5872e70396626ef385ec22355a1fae8ad29e1a734c3e43f9fbc216",
+        "url": "https://files.pythonhosted.org/packages/da/71/ae30dadffc90b9006d77af76b393cb9dfbfc9629f339fc1574a1c52e6806/future-1.0.0-py3-none-any.whl"
+      }
     },
     {
       "name": "six",
@@ -17,7 +22,12 @@
       "file_name": "six-1.16.0.tar.gz",
       "url": "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz",
       "sha256": "1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "six-1.16.0-py2.py3-none-any.whl",
+        "sha256": "8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254",
+        "url": "https://files.pythonhosted.org/packages/d9/5a/e7c31adbe875f2abbb91bd84cf2dc52d792b5a01506781dbcf25c91daf11/six-1.16.0-py2.py3-none-any.whl"
+      }
     },
     {
       "name": "rsa",
@@ -25,7 +35,12 @@
       "file_name": "rsa-4.9.tar.gz",
       "url": "https://files.pythonhosted.org/packages/aa/65/7d973b89c4d2351d7fb232c2e452547ddfa243e93131e7cfa766da627b52/rsa-4.9.tar.gz",
       "sha256": "e38464a49c6c85d7f1351b0126661487a7e0a14a50f1675ec50eb34d4f20ef21",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "rsa-4.9-py3-none-any.whl",
+        "sha256": "90260d9058e514786967344d0ef75fa8727eed8a7d2e43ce9f4bcf1b536174f7",
+        "url": "https://files.pythonhosted.org/packages/49/97/fa78e3d2f65c02c8e1268b9aba606569fe97f6c8f7c2d74394553347c145/rsa-4.9-py3-none-any.whl"
+      }
     },
     {
       "name": "pyasn1",
@@ -33,7 +48,12 @@
       "file_name": "pyasn1-0.6.1.tar.gz",
       "url": "https://files.pythonhosted.org/packages/ba/e9/01f1a64245b89f039897cb0130016d79f77d52669aae6ee7b159a6c4c018/pyasn1-0.6.1.tar.gz",
       "sha256": "6f580d2bdd84365380830acf45550f2511469f673cb4a5ae3857a3170128b034",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "pyasn1-0.6.1-py3-none-any.whl",
+        "sha256": "0d632f46f2ba09143da3a8afe9e33fb6f92fa2320ab7e886e2d0f7672af84629",
+        "url": "https://files.pythonhosted.org/packages/c8/f1/d6a797abb14f6283c0ddff96bbdd46937f64122b8c925cab503dd37f8214/pyasn1-0.6.1-py3-none-any.whl"
+      }
     },
     {
       "name": "ecdsa",
@@ -41,7 +61,12 @@
       "file_name": "ecdsa-0.19.0.tar.gz",
       "url": "https://files.pythonhosted.org/packages/5e/d0/ec8ac1de7accdcf18cfe468653ef00afd2f609faf67c423efbd02491051b/ecdsa-0.19.0.tar.gz",
       "sha256": "60eaad1199659900dd0af521ed462b793bbdf867432b3948e87416ae4caf6bf8",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "ecdsa-0.19.0-py2.py3-none-any.whl",
+        "sha256": "2cea9b88407fdac7bbeca0833b189e4c9c53f2ef1e1eaa29f6224dbc809b707a",
+        "url": "https://files.pythonhosted.org/packages/00/e7/ed3243b30d1bec41675b6394a1daae46349dc2b855cb83be846a5a918238/ecdsa-0.19.0-py2.py3-none-any.whl"
+      }
     },
     {
       "name": "urllib3",
@@ -49,7 +74,12 @@
       "file_name": "urllib3-2.2.2.tar.gz",
       "url": "https://files.pythonhosted.org/packages/43/6d/fa469ae21497ddc8bc93e5877702dca7cb8f911e337aca7452b5724f1bb6/urllib3-2.2.2.tar.gz",
       "sha256": "dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "urllib3-2.2.2-py3-none-any.whl",
+        "sha256": "a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472",
+        "url": "https://files.pythonhosted.org/packages/ca/1c/89ffc63a9605b583d5df2be791a27bc1a42b7c32bab68d3c8f2f73a98cd4/urllib3-2.2.2-py3-none-any.whl"
+      }
     },
     {
       "name": "chardet",
@@ -57,7 +87,12 @@
       "file_name": "chardet-5.2.0.tar.gz",
       "url": "https://files.pythonhosted.org/packages/f3/0d/f7b6ab21ec75897ed80c17d79b15951a719226b9fababf1e40ea74d69079/chardet-5.2.0.tar.gz",
       "sha256": "1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7",
-      "copyleft": true
+      "copyleft": true,
+      "wheel": {
+        "file_name": "chardet-5.2.0-py3-none-any.whl",
+        "sha256": "e1cf59446890a00105fe7b7912492ea04b6e6f06d4b742b2c788469e34c82970",
+        "url": "https://files.pythonhosted.org/packages/38/6f/f5fbc992a329ee4e0f288c1fe0e2ad9485ed064cac731ed2fe47dcc38cbf/chardet-5.2.0-py3-none-any.whl"
+      }
     },
     {
       "name": "certifi",
@@ -65,7 +100,12 @@
       "file_name": "certifi-2026.4.22.tar.gz",
       "url": "https://files.pythonhosted.org/packages/25/ee/6caf7a40c36a1220410afe15a1cc64993a1f864871f698c0f93acb72842a/certifi-2026.4.22.tar.gz",
       "sha256": "8d455352a37b71bf76a79caa83a3d6c25afee4a385d632127b6afb3963f1c580",
-      "copyleft": true
+      "copyleft": true,
+      "wheel": {
+        "file_name": "certifi-2026.4.22-py3-none-any.whl",
+        "sha256": "3cb2210c8f88ba2318d29b0388d1023c8492ff72ecdde4ebdaddbb13a31b1c4a",
+        "url": "https://files.pythonhosted.org/packages/22/30/7cd8fdcdfbc5b869528b079bfb76dcdf6056b1a2097a662e5e8c04f42965/certifi-2026.4.22-py3-none-any.whl"
+      }
     },
     {
       "name": "idna",
@@ -73,7 +113,12 @@
       "file_name": "idna-3.8.tar.gz",
       "url": "https://files.pythonhosted.org/packages/e8/ac/e349c5e6d4543326c6883ee9491e3921e0d07b55fdf3cce184b40d63e72a/idna-3.8.tar.gz",
       "sha256": "d838c2c0ed6fced7693d5e8ab8e734d5f8fda53a039c0164afb0b82e771e3603",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "idna-3.8-py3-none-any.whl",
+        "sha256": "050b4e5baadcd44d760cedbd2b8e639f2ff89bbc7a5730fcc662954303377aac",
+        "url": "https://files.pythonhosted.org/packages/22/7e/d71db821f177828df9dea8c42ac46473366f191be53080e552e628aad991/idna-3.8-py3-none-any.whl"
+      }
     },
     {
       "name": "requests",
@@ -81,7 +126,12 @@
       "file_name": "requests-2.33.0.tar.gz",
       "url": "https://files.pythonhosted.org/packages/34/64/8860370b167a9721e8956ae116825caff829224fbca0ca6e7bf8ddef8430/requests-2.33.0.tar.gz",
       "sha256": "c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "requests-2.33.0-py3-none-any.whl",
+        "sha256": "3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b",
+        "url": "https://files.pythonhosted.org/packages/56/5d/c814546c2333ceea4ba42262d8c4d55763003e767fa169adc693bd524478/requests-2.33.0-py3-none-any.whl"
+      }
     },
     {
       "name": "pefile",
@@ -97,7 +147,12 @@
       "file_name": "websockets-12.0.tar.gz",
       "url": "https://files.pythonhosted.org/packages/2e/62/7a7874b7285413c954a4cca3c11fd851f11b2fe5b4ae2d9bee4f6d9bdb10/websockets-12.0.tar.gz",
       "sha256": "81df9cbcbb6c260de1e007e58c011bfebe2dafc8435107b0537f393dd38c8b1b",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "websockets-12.0-py3-none-any.whl",
+        "sha256": "dc284bbc8d7c78a6c69e0c7325ab46ee5e40bb4d50e494d8131a07ef47500e9e",
+        "url": "https://files.pythonhosted.org/packages/79/4d/9cc401e7b07e80532ebc8c8e993f42541534da9e9249c59ee0139dcb0352/websockets-12.0-py3-none-any.whl"
+      }
     },
     {
       "name": "PySocks",
@@ -105,7 +160,24 @@
       "file_name": "PySocks-1.7.1.tar.gz",
       "url": "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz",
       "sha256": "3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0",
-      "copyleft": false
+      "copyleft": false,
+      "wheel": {
+        "file_name": "PySocks-1.7.1-py3-none-any.whl",
+        "sha256": "2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5",
+        "url": "https://files.pythonhosted.org/packages/8d/59/b4572118e098ac8e46e399a1dd0f2d85403ce8bbaad9ec79373ed6badaf9/PySocks-1.7.1-py3-none-any.whl"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "file_name": "setuptools-74.1.2-py3-none-any.whl",
+      "sha256": "5f4c08aa4d3ebcb57a50c33b1b07e94315d7fc7230f7115e47fc99776c8ce308",
+      "url": "https://files.pythonhosted.org/packages/cb/9c/9ad11ac06b97e55ada655f8a6bea9d1d3f06e120b178cd578d80e558191d/setuptools-74.1.2-py3-none-any.whl"
+    },
+    {
+      "file_name": "wheel-0.44.0-py3-none-any.whl",
+      "sha256": "2376a90c98cc337d18623527a97c31797bd02bad0033d41547043a1cbfbe448f",
+      "url": "https://files.pythonhosted.org/packages/1b/d1/9babe2ccaecff775992753d8686970b1e2755d21c8a63be73aba7a4e7d77/wheel-0.44.0-py3-none-any.whl"
     }
   ]
 }
