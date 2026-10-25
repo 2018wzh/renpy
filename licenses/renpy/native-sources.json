@@ -54,6 +54,15 @@
       "file_name": "renpy-39895c1e017f0b36ffea2447d97eccd69d76ee1c.tar.gz",
       "sha256": "706daeeeb8dfe5e441d2697fbbb8bfc530dc2999ebda2bc81d15a5a2b3393448",
       "strip_components": 1
+    },
+    {
+      "name": "pyobjus",
+      "repo": "https://github.com/kivy/pyobjus",
+      "rev": "b61d65fdc620dbe19892d2419b77340341e76084",
+      "url": "https://codeload.github.com/kivy/pyobjus/tar.gz/b61d65fdc620dbe19892d2419b77340341e76084",
+      "file_name": "pyobjus-b61d65fdc620dbe19892d2419b77340341e76084.tar.gz",
+      "sha256": "2df699596ca747432965840c879d234dde25bcb4799f04511eba3c693c23d7d5",
+      "strip_components": 1
     }
   ]
 }
