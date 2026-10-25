@@ -1,0 +1,111 @@
+{
+  "sdk": "8.5.3.26051504",
+  "sdk_sha256": "ff57648f9c04f27e381c48af6d8e3ee3cdec296bed4d3831f47f09b0a71b505e",
+  "renpy_build": "7bfab40c1174f622f644b24669afd5fb167fbb79",
+  "packages": [
+    {
+      "name": "future",
+      "version": "1.0.0",
+      "file_name": "future-1.0.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/a7/b2/4140c69c6a66432916b26158687e821ba631a4c9273c474343badf84d3ba/future-1.0.0.tar.gz",
+      "sha256": "bd2968309307861edae1458a4f8a4f3598c03be43b97521076aebf5d94c07b05",
+      "copyleft": false
+    },
+    {
+      "name": "six",
+      "version": "1.16.0",
+      "file_name": "six-1.16.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz",
+      "sha256": "1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926",
+      "copyleft": false
+    },
+    {
+      "name": "rsa",
+      "version": "4.9",
+      "file_name": "rsa-4.9.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/aa/65/7d973b89c4d2351d7fb232c2e452547ddfa243e93131e7cfa766da627b52/rsa-4.9.tar.gz",
+      "sha256": "e38464a49c6c85d7f1351b0126661487a7e0a14a50f1675ec50eb34d4f20ef21",
+      "copyleft": false
+    },
+    {
+      "name": "pyasn1",
+      "version": "0.6.1",
+      "file_name": "pyasn1-0.6.1.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/ba/e9/01f1a64245b89f039897cb0130016d79f77d52669aae6ee7b159a6c4c018/pyasn1-0.6.1.tar.gz",
+      "sha256": "6f580d2bdd84365380830acf45550f2511469f673cb4a5ae3857a3170128b034",
+      "copyleft": false
+    },
+    {
+      "name": "ecdsa",
+      "version": "0.19.0",
+      "file_name": "ecdsa-0.19.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/5e/d0/ec8ac1de7accdcf18cfe468653ef00afd2f609faf67c423efbd02491051b/ecdsa-0.19.0.tar.gz",
+      "sha256": "60eaad1199659900dd0af521ed462b793bbdf867432b3948e87416ae4caf6bf8",
+      "copyleft": false
+    },
+    {
+      "name": "urllib3",
+      "version": "2.2.2",
+      "file_name": "urllib3-2.2.2.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/43/6d/fa469ae21497ddc8bc93e5877702dca7cb8f911e337aca7452b5724f1bb6/urllib3-2.2.2.tar.gz",
+      "sha256": "dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168",
+      "copyleft": false
+    },
+    {
+      "name": "chardet",
+      "version": "5.2.0",
+      "file_name": "chardet-5.2.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/f3/0d/f7b6ab21ec75897ed80c17d79b15951a719226b9fababf1e40ea74d69079/chardet-5.2.0.tar.gz",
+      "sha256": "1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7",
+      "copyleft": true
+    },
+    {
+      "name": "certifi",
+      "version": "2026.4.22",
+      "file_name": "certifi-2026.4.22.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/25/ee/6caf7a40c36a1220410afe15a1cc64993a1f864871f698c0f93acb72842a/certifi-2026.4.22.tar.gz",
+      "sha256": "8d455352a37b71bf76a79caa83a3d6c25afee4a385d632127b6afb3963f1c580",
+      "copyleft": true
+    },
+    {
+      "name": "idna",
+      "version": "3.8",
+      "file_name": "idna-3.8.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/e8/ac/e349c5e6d4543326c6883ee9491e3921e0d07b55fdf3cce184b40d63e72a/idna-3.8.tar.gz",
+      "sha256": "d838c2c0ed6fced7693d5e8ab8e734d5f8fda53a039c0164afb0b82e771e3603",
+      "copyleft": false
+    },
+    {
+      "name": "requests",
+      "version": "2.33.0",
+      "file_name": "requests-2.33.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/34/64/8860370b167a9721e8956ae116825caff829224fbca0ca6e7bf8ddef8430/requests-2.33.0.tar.gz",
+      "sha256": "c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652",
+      "copyleft": false
+    },
+    {
+      "name": "pefile",
+      "version": "2022.5.30",
+      "file_name": "pefile-2022.5.30.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/48/30/4559d06bad5bb627733dac1ef28c34f5e35f1461247ba63e5f6366901277/pefile-2022.5.30.tar.gz",
+      "sha256": "a5488a3dd1fd021ce33f969780b88fe0f7eebb76eb20996d7318f307612a045b",
+      "copyleft": false
+    },
+    {
+      "name": "websockets",
+      "version": "12.0",
+      "file_name": "websockets-12.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/2e/62/7a7874b7285413c954a4cca3c11fd851f11b2fe5b4ae2d9bee4f6d9bdb10/websockets-12.0.tar.gz",
+      "sha256": "81df9cbcbb6c260de1e007e58c011bfebe2dafc8435107b0537f393dd38c8b1b",
+      "copyleft": false
+    },
+    {
+      "name": "PySocks",
+      "version": "1.7.1",
+      "file_name": "PySocks-1.7.1.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz",
+      "sha256": "3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0",
+      "copyleft": false
+    }
+  ]
+}

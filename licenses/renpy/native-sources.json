@@ -1,0 +1,59 @@
+{
+  "renpy_build": "7bfab40c1174f622f644b24669afd5fb167fbb79",
+  "sources": [
+    {
+      "name": "aom",
+      "repo": "https://aomedia.googlesource.com/aom",
+      "rev": "bcfe6fbfed315f83ee8a95465c654ee8078dbff9",
+      "url": "https://aomedia.googlesource.com/aom/+archive/bcfe6fbfed315f83ee8a95465c654ee8078dbff9.tar.gz",
+      "file_name": "aom-bcfe6fbfed315f83ee8a95465c654ee8078dbff9.tar.gz",
+      "sha256": "d7f331ba7a4c3d25f781c3a2f53532e8a9dc327f331654f4ffeddd958e429a53",
+      "strip_components": 0
+    },
+    {
+      "name": "libavif",
+      "repo": "https://github.com/AOMediaCodec/libavif",
+      "rev": "6ab53189045e7a6fe0bd93d14977b2a4f8efa5e9",
+      "url": "https://codeload.github.com/AOMediaCodec/libavif/tar.gz/6ab53189045e7a6fe0bd93d14977b2a4f8efa5e9",
+      "file_name": "libavif-6ab53189045e7a6fe0bd93d14977b2a4f8efa5e9.tar.gz",
+      "sha256": "74028c13f5a516cca446a1dbf9d04340acaee5f9cef0ea003d42d64fea1be604",
+      "strip_components": 1
+    },
+    {
+      "name": "libyuv",
+      "repo": "https://chromium.googlesource.com/libyuv/libyuv",
+      "rev": "331c361581896292fb46c8c6905e41262b7ca95f",
+      "url": "https://chromium.googlesource.com/libyuv/libyuv/+archive/331c361581896292fb46c8c6905e41262b7ca95f.tar.gz",
+      "file_name": "libyuv-331c361581896292fb46c8c6905e41262b7ca95f.tar.gz",
+      "sha256": "df588c90472b9d736d907d335c690d820799d91d3c966b33715c862a5b69e364",
+      "strip_components": 0
+    },
+    {
+      "name": "assimp",
+      "repo": "https://github.com/assimp/assimp",
+      "rev": "c35200e38ea8f058812b83de2ef32c6093b0ece2",
+      "url": "https://codeload.github.com/assimp/assimp/tar.gz/c35200e38ea8f058812b83de2ef32c6093b0ece2",
+      "file_name": "assimp-c35200e38ea8f058812b83de2ef32c6093b0ece2.tar.gz",
+      "sha256": "300fd8614af364bc750706c2b33cb66dee2d99eeb5e10f38cc979ddc9b80051a",
+      "strip_components": 1
+    },
+    {
+      "name": "cpython-mingw",
+      "repo": "https://github.com/msys2-contrib/cpython-mingw",
+      "rev": "d21f60d4a8bb03e0309fe3907b104f1878059f90",
+      "url": "https://codeload.github.com/msys2-contrib/cpython-mingw/tar.gz/d21f60d4a8bb03e0309fe3907b104f1878059f90",
+      "file_name": "cpython-mingw-d21f60d4a8bb03e0309fe3907b104f1878059f90.tar.gz",
+      "sha256": "95b526d5afa1a56bf97c0844ea21ba108108a8cbd39c0fbaf2d646a9e37ce50c",
+      "strip_components": 1
+    },
+    {
+      "name": "renpy",
+      "repo": "https://github.com/renpy/renpy",
+      "rev": "39895c1e017f0b36ffea2447d97eccd69d76ee1c",
+      "url": "https://codeload.github.com/renpy/renpy/tar.gz/39895c1e017f0b36ffea2447d97eccd69d76ee1c",
+      "file_name": "renpy-39895c1e017f0b36ffea2447d97eccd69d76ee1c.tar.gz",
+      "sha256": "706daeeeb8dfe5e441d2697fbbb8bfc530dc2999ebda2bc81d15a5a2b3393448",
+      "strip_components": 1
+    }
+  ]
+}
