@@ -4,6 +4,19 @@ The Ren'Py Visual Novel Engine
 
 https://www.renpy.org
 
+ShinkiEMU adapter
+================
+
+``shinki/Cargo.toml`` builds the Windows x64 official-SDK adapter with Rust
+1.98 or newer and edition 2024. The upstream baseline is release
+``8.5.3.26051504`` (``39895c1e017f0b36ffea2447d97eccd69d76ee1c``).
+``shinki/sdk.json`` pins the matching official SDK archive and native DLL
+hashes; ShinkiEMU's ``build/dependencies.toml`` must use the same pins.
+Prepare and build from ShinkiEMU with ``cargo xtask deps --core renpy
+--target x86_64-pc-windows-msvc`` and ``cargo xtask build --core renpy
+--target x86_64-pc-windows-msvc --release``.
+
+
 
 Branches
 ========

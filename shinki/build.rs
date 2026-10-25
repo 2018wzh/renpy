@@ -28,7 +28,8 @@ fn run() -> Result<()> {
     }
     // Keep CMake bounded even when the parent Cargo has a larger job limit.
     let jobs = env::var("NUM_JOBS").ok().and_then(|n| n.parse::<usize>().ok()).unwrap_or(4);
-    env::set_var("NUM_JOBS", jobs.clamp(1, 4).to_string());
+    // This build script is single-threaded; no other thread can read the environment.
+    unsafe { env::set_var("NUM_JOBS", jobs.clamp(1, 4).to_string()) };
     let source = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR")?);
     let out = PathBuf::from(env::var_os("OUT_DIR").context("OUT_DIR")?);
     let sdk = input("RENPY_SDK_ROOT")?;
