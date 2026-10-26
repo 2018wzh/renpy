@@ -5,9 +5,8 @@
       "name": "aom",
       "repo": "https://aomedia.googlesource.com/aom",
       "rev": "bcfe6fbfed315f83ee8a95465c654ee8078dbff9",
-      "url": "https://aomedia.googlesource.com/aom/+archive/bcfe6fbfed315f83ee8a95465c654ee8078dbff9.tar.gz",
-      "file_name": "aom-bcfe6fbfed315f83ee8a95465c654ee8078dbff9.tar.gz",
-      "sha256": "d7f331ba7a4c3d25f781c3a2f53532e8a9dc327f331654f4ffeddd958e429a53",
+      "file_name": "aom-bcfe6fbfed315f83ee8a95465c654ee8078dbff9.tar",
+      "sha256": "c320a1f35483a5c3507439a09b7458c9e3ab18d79a089125acb2a5187d7e634e",
       "strip_components": 0
     },
     {
@@ -23,9 +22,8 @@
       "name": "libyuv",
       "repo": "https://chromium.googlesource.com/libyuv/libyuv",
       "rev": "331c361581896292fb46c8c6905e41262b7ca95f",
-      "url": "https://chromium.googlesource.com/libyuv/libyuv/+archive/331c361581896292fb46c8c6905e41262b7ca95f.tar.gz",
-      "file_name": "libyuv-331c361581896292fb46c8c6905e41262b7ca95f.tar.gz",
-      "sha256": "df588c90472b9d736d907d335c690d820799d91d3c966b33715c862a5b69e364",
+      "file_name": "libyuv-331c361581896292fb46c8c6905e41262b7ca95f.tar",
+      "sha256": "9c3129233245a97618b16d87afdf9b3b77ccb3f8f5f0aa6f6332dcedea7aa994",
       "strip_components": 0
     },
     {
