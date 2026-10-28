@@ -432,6 +432,11 @@ def main():
     if renpy.game.args.savedir:  # type: ignore
         renpy.config.savedir = renpy.game.args.savedir  # type: ignore
 
+    # Import beta adapter saves before native token and persistent loading.
+    bridge = sys.modules.get("shinki_renpy_bridge")
+    if bridge is not None and bridge.session_active():
+        bridge.migrate_saves()
+
     # Init the save token system.
     renpy.savetoken.init()
 

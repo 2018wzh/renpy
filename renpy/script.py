@@ -902,9 +902,6 @@ class Script(object):
 
                 if not renpy.macapp:
                     try:
-                        bridge = sys.modules.get("shinki_renpy_bridge")
-                        if bridge is not None and bridge.session_active():
-                            rpycfn = bridge.generated_path(rpycfn)
                         with open(rpycfn, "wb") as f:
                             self.write_rpyc_header(f)
                             self.write_rpyc_data(f, 1, pickle_data_before_static_transforms)

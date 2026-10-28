@@ -28,7 +28,6 @@ from __future__ import division, absolute_import, with_statement, print_function
 from renpy.compat import PY2, basestring, bchr, bord, chr, open, pystr, range, round, str, tobytes, unicode  # *
 
 import os
-import sys
 import zipfile
 import json
 
@@ -699,7 +698,7 @@ def init():
     location_add(renpy.config.savedir)
 
     # 2. Game-local savedir.
-    if not renpy.mobile and not renpy.macapp:
+    if (not renpy.mobile) and (not renpy.macapp):
         path = os.path.join(renpy.config.gamedir, "saves")
         location_add(path)
 

@@ -1,11 +1,10 @@
 """ShinkiEMU platform boundary for the unmodified Ren'Py game/renderer ABI."""
 
 import functools
-import hashlib
 import importlib.abc
 import importlib.util
 import os
-import shutil
+from shinki_save_migration import migrate_legacy_saves
 import sys
 import threading
 import types
@@ -17,7 +16,7 @@ _RUNTIME = os.path.dirname(os.path.abspath(__file__))
 _active = False
 _closing = False
 _owner = None
-_data_root = None
+_game_root = None
 _audio_paused = False
 _surface_ready = False
 _pause_seconds = 0.0
@@ -67,23 +66,6 @@ def initial_size():
     import renpy
     # A fullscreen request must not create a zero-sized desktop SDL window.
     return renpy.config.screen_width, renpy.config.screen_height
-
-
-def generated_path(filename):
-    """Redirect generated files only; loader/archive reads retain SDK semantics."""
-    filename = os.fsdecode(filename)
-    if os.path.isabs(filename):
-        digest = hashlib.sha256(os.path.normcase(os.path.abspath(filename)).encode("utf-8")).hexdigest()
-        filename = os.path.join("compiled", digest, os.path.basename(filename))
-    else:
-        filename = os.path.normpath(filename)
-        if filename == ".." or filename.startswith(".." + os.sep):
-            raise ValueError("Generated path escapes the private data directory.")
-        if filename.startswith("cache" + os.sep):
-            filename = filename[len("cache" + os.sep):]
-    target = os.path.join(_data_root, "cache", filename)
-    os.makedirs(os.path.dirname(target), exist_ok=True)
-    return target
 
 
 def _check_cancelled():
@@ -380,14 +362,28 @@ def _cleanup():
         raise BaseExceptionGroup("Ren'Py session cleanup failed", errors)
 
 
+def migrate_saves():
+    import renpy
+
+    destinations = [renpy.config.savedir]
+    if not renpy.mobile and not renpy.macapp:
+        destinations.append(os.path.join(renpy.config.gamedir, "saves"))
+    try:
+        migrate_legacy_saves(
+            _game_root,
+            destinations,
+            renpy.__main__.path_to_saves(renpy.config.gamedir, "tokens"),
+            renpy.__main__.path_to_saves(renpy.config.gamedir, "backups"),
+        )
+    except OSError as error:
+        warnings.warn("Could not migrate beta Ren'Py saves: " + str(error), RuntimeWarning)
+
+
 def run_session(game_root):
-    global _active, _closing, _data_root, _owner, _audio_paused, _pause_seconds, _module_baseline, _surface_ready
+    global _active, _closing, _game_root, _owner, _audio_paused, _pause_seconds, _module_baseline, _surface_ready
     if _active:
         raise RuntimeError("A Ren'Py session is already active.")
     game_root = os.path.abspath(game_root)
-    data_root = tempfile.mkdtemp(prefix="shinki-renpy-")
-    for name in ("cache",):
-        os.makedirs(os.path.join(data_root, name), exist_ok=True)
 
     old_path = list(sys.path)
     old_meta_path = list(sys.meta_path)
@@ -399,7 +395,7 @@ def run_session(game_root):
     old_stdout, old_stderr = sys.stdout, sys.stderr
     old_env = dict(os.environ)
     initial_modules = set(sys.modules)
-    _data_root = data_root
+    _game_root = game_root
     _owner = threading.get_ident()
     _active = True
     _closing = False
@@ -473,9 +469,8 @@ def run_session(game_root):
             os.chdir(old_cwd)
             os.environ.clear()
             os.environ.update(old_env)
-            shutil.rmtree(data_root, ignore_errors=True)
             _active = False
             _closing = False
             _owner = None
-            _data_root = None
+            _game_root = None
             _module_baseline = None
