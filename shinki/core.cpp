@@ -227,6 +227,7 @@ struct Session {
   uint64_t epoch = 0, context = 0, output = 0, generation = 0, request = 0,
            wake = 0;
   std::string game_root;
+  ShinkiEmuWindowState window{};
   bool user_paused = false, effective_pause = false, configured = false,
        done = false, failed = false;
   Clock::time_point pause_start{};
@@ -968,8 +969,8 @@ ShinkiEmuStatus describe(ShinkiEmuDescriptor *out,
             ShinkiEmuCAP_CPU_SURFACE,
             formats,
             3,
-            &data,
-            1,
+            nullptr,
+            0,
             bytes("Ren'Py"),
             bytes("Ren'Py"),
             {}};
