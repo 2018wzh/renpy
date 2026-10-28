@@ -1,15 +1,20 @@
 // ShinkiEMU ABI v3 adapter for the original Ren'Py runtime.
 #define PY_SSIZE_T_CLEAN
+#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#include <unistd.h>
+#endif
 #include "vendor/shinki-emu-abi/include/shinki_emu.h"
 #include <Python.h>
 #include <SDL.h>
-#include <windows.h>
 
 #include <algorithm>
 #include <array>
@@ -33,17 +38,9 @@
 #include <vector>
 
 extern "C" void init_librenpy(void);
-// These private entry points are exported by the SDK's librenpython.dll.
-// Signatures are SDL 2.0.20 src/events/{SDL_keyboard,SDL_mouse}_c.h.
-extern "C" {
-int SDL_SendKeyboardKey(Uint8, SDL_Scancode);
-int SDL_SendKeyboardText(const char *);
-void SDL_SetKeyboardFocus(SDL_Window *);
-void SDL_SetMouseFocus(SDL_Window *);
-int SDL_SendMouseMotion(SDL_Window *, Uint32, int, int, int);
-int SDL_SendMouseButton(SDL_Window *, Uint32, Uint8, Uint8);
-int SDL_SendMouseWheel(SDL_Window *, Uint32, float, float,
-                       SDL_MouseWheelDirection);
+
+bool push_event(const SDL_Event &event) {
+  return SDL_PushEvent(const_cast<SDL_Event *>(&event)) == 1;
 }
 
 namespace {
@@ -128,121 +125,76 @@ bool header(const ShinkiEmuHeader &h, size_t size) noexcept {
   return h.version == ShinkiEmuABI_VERSION && h.size >= size;
 }
 std::string text(ShinkiEmuBytes b, size_t maximum, bool empty = true) {
-  if (b.len > maximum || (b.len && !b.data) || (!empty && !b.len))
-    invalid("Invalid UTF-8 byte span");
-  if (!b.len)
-    return {};
-  if (std::memchr(b.data, 0, b.len))
-    invalid("Embedded NUL is not permitted");
-  if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
-                           reinterpret_cast<const char *>(b.data),
-                           static_cast<int>(b.len), nullptr, 0))
-    invalid("Invalid UTF-8 encoding");
+  if (b.len > maximum || (b.len && !b.data) || (!empty && !b.len)) invalid("Invalid UTF-8 byte span");
+  if (!b.len) return {};
+  if (std::memchr(b.data, 0, b.len)) invalid("Embedded NUL is not permitted");
+  PyObject *value = PyUnicode_DecodeUTF8(reinterpret_cast<const char *>(b.data), static_cast<Py_ssize_t>(b.len), "strict");
+  if (!value) { PyErr_Clear(); invalid("Invalid UTF-8 encoding"); }
+  Py_DECREF(value);
   return {reinterpret_cast<const char *>(b.data), b.len};
 }
-std::wstring wide(const std::string &s) {
-  if (s.empty())
-    return {};
-  const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s.data(),
-                                    static_cast<int>(s.size()), nullptr, 0);
-  if (!n)
-    invalid("Invalid UTF-8 path");
-  std::wstring result(n, L'\0');
-  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s.data(),
-                      static_cast<int>(s.size()), result.data(), n);
-  return result;
-}
-std::string utf8(const fs::path &p) { return p.u8string(); }
 fs::path canonical_directory(const std::string &value) {
-  fs::path p(wide(value));
-  if (!p.is_absolute())
-    invalid("Game path must be an absolute directory path");
-  std::error_code ec;
-  p = fs::canonical(p, ec);
-  if (ec || !fs::is_directory(p))
-    invalid("Game path is not an accessible directory");
+  fs::path p = fs::u8path(value);
+  if (!p.is_absolute()) invalid("Game path must be an absolute directory path");
+  std::error_code ec; p = fs::canonical(p, ec);
+  if (ec || !fs::is_directory(p)) invalid("Game path is not an accessible directory");
   return p;
 }
-std::wstring path_key(const fs::path &p) {
-  std::wstring value = p.lexically_normal().native();
-  std::replace(value.begin(), value.end(), L'/', L'\\');
-  const int n = LCMapStringEx(LOCALE_NAME_INVARIANT, LCMAP_LOWERCASE,
-                              value.data(), static_cast<int>(value.size()),
-                              nullptr, 0, nullptr, nullptr, 0);
-  if (!n)
-    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PATH_NORMALIZATION",
-                  "Cannot normalize game path");
-  std::wstring result(n, L'\0');
-  LCMapStringEx(LOCALE_NAME_INVARIANT, LCMAP_LOWERCASE, value.data(),
-                static_cast<int>(value.size()), result.data(), n, nullptr,
-                nullptr, 0);
-  return result;
+std::string path_key(const fs::path &p) {
+  std::string value = p.lexically_normal().u8string();
+  std::replace(value.begin(), value.end(), '\\', '/');
+  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : static_cast<char>(c); });
+  return value;
 }
 std::string game_hash(const fs::path &p) {
-  // FNV-1a of canonical, case-folded Windows UTF-16 code units, explicitly LE.
   uint64_t hash = 14695981039346656037ull;
-  for (const wchar_t ch : path_key(p)) {
-    hash = (hash ^ (static_cast<uint16_t>(ch) & 255u)) * 1099511628211ull;
-    hash = (hash ^ (static_cast<uint16_t>(ch) >> 8)) * 1099511628211ull;
-  }
-  std::ostringstream out;
-  out << std::hex << std::setfill('0') << std::setw(16) << hash;
-  return out.str();
+  for (const unsigned char ch : path_key(p)) hash = (hash ^ ch) * 1099511628211ull;
+  std::ostringstream out; out << std::hex << std::setfill('0') << std::setw(16) << hash; return out.str();
 }
 bool within(const fs::path &child, const fs::path &parent) {
   const auto c = path_key(child), p = path_key(parent);
-  return c == p || (c.size() > p.size() && c.compare(0, p.size(), p) == 0 &&
-                    (p.back() == L'\\' || c[p.size()] == L'\\'));
+  return c == p || (c.size() > p.size() && c.compare(0, p.size(), p) == 0 && (p.back() == '/' || c[p.size()] == '/'));
 }
 fs::path package_root() {
+#ifdef _WIN32
   HMODULE module = nullptr;
-  if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                              GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                          reinterpret_cast<LPCWSTR>(&package_root), &module))
-    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH",
-                  "Cannot locate adapter DLL");
-  std::vector<wchar_t> name(32768);
-  const DWORD n =
-      GetModuleFileNameW(module, name.data(), static_cast<DWORD>(name.size()));
-  if (!n || n >= name.size())
-    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH",
-                  "Cannot read adapter DLL path");
+  if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&package_root), &module)) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH", "Cannot locate adapter library");
+  std::vector<wchar_t> name(32768); const DWORD n = GetModuleFileNameW(module, name.data(), static_cast<DWORD>(name.size()));
+  if (!n || n >= name.size()) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH", "Cannot read adapter library path");
   return fs::path(std::wstring(name.data(), n)).parent_path();
+#else
+  Dl_info info{};
+  if (!dladdr(reinterpret_cast<const void *>(&package_root), &info) || !info.dli_fname) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH", "Cannot locate adapter library");
+  return fs::absolute(fs::u8path(info.dli_fname)).parent_path();
+#endif
 }
 struct Detection {
   bool matched = false;
   const char *format = "";
 };
 Detection detect(const fs::path &root) {
-  const fs::path game =
-      fs::is_directory(root / L"game") ? root / L"game" : root;
+  const fs::path game = fs::is_directory(root / "game") ? root / "game" : root;
   std::error_code ec;
-  for (fs::directory_iterator i(game, ec), end; !ec && i != end;
-       i.increment(ec)) {
-    if (!i->is_regular_file(ec))
-      continue;
-    auto extension = i->path().extension().wstring();
-    std::transform(extension.begin(), extension.end(), extension.begin(),
-                   [](wchar_t c) {
-                     return c >= L'A' && c <= L'Z' ? c + (L'a' - L'A') : c;
-                   });
-    if (extension != L".rpyc" && extension != L".rpa" && extension != L".rpy")
-      continue;
+  for (fs::directory_iterator i(game, ec), end; !ec && i != end; i.increment(ec)) {
+    if (!i->is_regular_file(ec)) continue;
+    auto extension = i->path().extension().u8string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : static_cast<char>(c); });
+    if (extension != ".rpyc" && extension != ".rpa" && extension != ".rpy") continue;
     std::ifstream file(i->path(), std::ios::binary);
     std::array<unsigned char, 16> magic{};
     file.read(reinterpret_cast<char *>(magic.data()), magic.size());
     const auto count = file.gcount();
-    if (extension == L".rpa" && count >= 7 &&
+    if (extension == ".rpa" && count >= 7 &&
         (std::memcmp(magic.data(), "RPA-3.0", 7) == 0 ||
          std::memcmp(magic.data(), "RPA-2.0", 7) == 0 ||
          std::memcmp(magic.data(), "RPA-1.0", 7) == 0))
       return {true, "rpa"};
-    if (extension == L".rpyc" &&
+    if (extension == ".rpyc" &&
         ((count >= 10 && std::memcmp(magic.data(), "RENPY RPC2", 10) == 0) ||
          (count >= 2 && (magic[0] & 15) == 8 && (magic[0] >> 4) <= 7 &&
           ((magic[0] << 8) + magic[1]) % 31 == 0)))
       return {true, "rpyc"};
-    if (extension == L".rpy" && count > 0 && game != root)
+    if (extension == ".rpy" && count > 0 && game != root)
       return {true, "rpy"};
   }
   return {};
@@ -639,115 +591,58 @@ SDL_Scancode scancode(const std::string &key) noexcept {
   return SDL_SCANCODE_UNKNOWN;
 }
 bool logical_text(const std::string &value) noexcept {
-  if (value.empty())
-    return false;
-  for (unsigned char c : value)
-    if (c < 32 || c == 127)
-      return false;
-  // Winit named keys are not committed text; ordinary multi-codepoint IME text
-  // is.
-  static constexpr const char *named[] = {
-      "Enter",       "Escape",       "Tab",        "Backspace", "Delete",
-      "Insert",      "Home",         "End",        "PageUp",    "PageDown",
-      "ArrowLeft",   "ArrowRight",   "ArrowUp",    "ArrowDown", "Shift",
-      "Control",     "Alt",          "AltGraph",   "Meta",      "Super",
-      "CapsLock",    "NumLock",      "ScrollLock", "Pause",     "PrintScreen",
-      "ContextMenu", "Unidentified", "Dead",       "Clear",     "Copy",
-      "Cut",         "Paste",        "Undo",       "Redo",      "Help",
-      "Fn",          "FnLock",       "Hyper",      "Symbol",    "SymbolLock"};
-  for (const char *name : named)
-    if (value == name)
-      return false;
-  if (value.size() >= 2 && value.size() <= 3 && value[0] == 'F' &&
-      value[1] >= '0' && value[1] <= '9')
-    return false;
+  if (value.empty()) return false;
+  for (unsigned char c : value) if (c < 32 || c == 127) return false;
+  static constexpr const char *named[] = {"Enter", "Escape", "Tab", "Backspace", "Delete", "Insert", "Home", "End", "PageUp", "PageDown", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Shift", "Control", "Alt", "AltGraph", "Meta", "Super", "CapsLock", "NumLock", "ScrollLock", "Pause", "PrintScreen", "ContextMenu", "Unidentified", "Dead", "Clear", "Copy", "Cut", "Paste", "Undo", "Redo", "Help", "Fn", "FnLock", "Hyper", "Symbol", "SymbolLock"};
+  for (const char *name : named) if (value == name) return false;
+  if (value.size() >= 2 && value.size() <= 3 && value[0] == 'F' && value[1] >= '0' && value[1] <= '9') return false;
   return true;
 }
 void send_text(const std::string &value) {
   size_t offset = 0;
   while (offset < value.size()) {
-    size_t count =
-        (std::min)(value.size() - offset,
-                   static_cast<size_t>(SDL_TEXTINPUTEVENT_TEXT_SIZE - 1));
-    if (offset + count < value.size())
-      while (count &&
-             (static_cast<unsigned char>(value[offset + count]) & 0xc0) == 0x80)
-        --count;
-    char chunk[SDL_TEXTINPUTEVENT_TEXT_SIZE]{};
-    std::memcpy(chunk, value.data() + offset, count);
-    SDL_SendKeyboardText(chunk);
+    size_t count = (std::min)(value.size() - offset, static_cast<size_t>(SDL_TEXTINPUTEVENT_TEXT_SIZE - 1));
+    if (offset + count < value.size()) while (count && (static_cast<unsigned char>(value[offset + count]) & 0xc0) == 0x80) --count;
+    SDL_Event injected{};
+    injected.type = SDL_TEXTINPUT;
+    std::memcpy(injected.text.text, value.data() + offset, count);
+    if (!push_event(injected)) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_INPUT_QUEUE", "SDL input queue rejected text");
     offset += count;
   }
 }
 PyObject *py_pump_events(PyObject *, PyObject *args) {
   return python_boundary([&]() -> PyObject * {
     double scale_x, scale_y;
-    if (!PyArg_ParseTuple(args, "dd:pump_events", &scale_x, &scale_y))
-      return nullptr;
-    if (!std::isfinite(scale_x) || !std::isfinite(scale_y) || scale_x <= 0 ||
-        scale_y <= 0)
-      invalid("Invalid renderer coordinate scale");
+    if (!PyArg_ParseTuple(args, "dd:pump_events", &scale_x, &scale_y)) return nullptr;
+    if (!std::isfinite(scale_x) || !std::isfinite(scale_y) || scale_x <= 0 || scale_y <= 0) invalid("Invalid renderer coordinate scale");
     auto &s = python_session();
     auto *window = SDL_GL_GetCurrentWindow();
-    if (!window)
-      Py_RETURN_NONE;
-    bool focused;
-    uint64_t output_epoch;
-    {
-      std::lock_guard<std::mutex> lock(s.mutex);
-      s.pumping.clear();
-      s.pumping.swap(s.inputs);
-      focused = s.window.focused != 0;
-      output_epoch = s.output;
-    }
+    if (!window) Py_RETURN_NONE;
+    bool focused; uint64_t output_epoch;
+    { std::lock_guard<std::mutex> lock(s.mutex); s.pumping.clear(); s.pumping.swap(s.inputs); focused = s.window.focused != 0; output_epoch = s.output; }
+    const Uint32 window_id = SDL_GetWindowID(window);
     if (!s.sent_focus || s.last_focus != focused || s.input_window != window) {
-      SDL_SetKeyboardFocus(focused ? window : nullptr);
-      SDL_SetMouseFocus(focused ? window : nullptr);
-      s.last_focus = focused;
-      s.sent_focus = true;
-      s.input_window = window;
+      SDL_Event focus{}; focus.type = SDL_WINDOWEVENT; focus.window.windowID = window_id; focus.window.event = focused ? SDL_WINDOWEVENT_FOCUS_GAINED : SDL_WINDOWEVENT_FOCUS_LOST;
+      if (!push_event(focus)) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_INPUT_QUEUE", "SDL input queue rejected focus");
+      s.last_focus = focused; s.sent_focus = true; s.input_window = window;
     }
     for (const auto &item : s.pumping) {
       const auto &event = item.event;
-      if (s.cancelled())
-        break;
-      if (event.kind == ShinkiEmuINPUT_WINDOW)
-        continue;
-      if (event.displayed.output_epoch != output_epoch)
-        continue;
+      if (s.cancelled()) break;
+      if (event.kind == ShinkiEmuINPUT_WINDOW || event.displayed.output_epoch != output_epoch) continue;
+      SDL_Event injected{};
       if (event.kind == ShinkiEmuINPUT_KEY) {
-        const auto code =
-            scancode(item.physical.empty() ? item.logical : item.physical);
-        if (code != SDL_SCANCODE_UNKNOWN)
-          SDL_SendKeyboardKey(event.pressed ? SDL_PRESSED : SDL_RELEASED, code);
-        if (event.pressed && logical_text(item.logical))
-          send_text(item.logical);
-      } else if (event.kind == ShinkiEmuINPUT_POINTER_MOVE ||
-                 event.kind == ShinkiEmuINPUT_POINTER_BUTTON) {
+        const auto code = scancode(item.physical.empty() ? item.logical : item.physical);
+        if (code != SDL_SCANCODE_UNKNOWN) { injected.type = event.pressed ? SDL_KEYDOWN : SDL_KEYUP; injected.key.windowID = window_id; injected.key.state = event.pressed ? SDL_PRESSED : SDL_RELEASED; injected.key.repeat = event.repeat; injected.key.keysym.scancode = code; injected.key.keysym.sym = SDL_GetKeyFromScancode(code); if (!push_event(injected)) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_INPUT_QUEUE", "SDL input queue rejected key"); }
+        if (event.pressed && logical_text(item.logical)) send_text(item.logical);
+      } else if (event.kind == ShinkiEmuINPUT_POINTER_MOVE || event.kind == ShinkiEmuINPUT_POINTER_BUTTON) {
         const double px = event.x / scale_x, py = event.y / scale_y;
-        if (px < std::numeric_limits<int>::min() ||
-            px > std::numeric_limits<int>::max() ||
-            py < std::numeric_limits<int>::min() ||
-            py > std::numeric_limits<int>::max())
-          invalid("Pointer coordinate exceeds SDL range");
-        SDL_SendMouseMotion(window, 0, 0, static_cast<int>(px),
-                            static_cast<int>(py));
-        if (event.kind == ShinkiEmuINPUT_POINTER_BUTTON) {
-          const Uint8 button =
-              event.button == ShinkiEmuBUTTON_PRIMARY     ? SDL_BUTTON_LEFT
-              : event.button == ShinkiEmuBUTTON_SECONDARY ? SDL_BUTTON_RIGHT
-                                                         : SDL_BUTTON_MIDDLE;
-          SDL_SendMouseButton(
-              window, 0, event.pressed ? SDL_PRESSED : SDL_RELEASED, button);
-        }
-      } else if (event.kind == ShinkiEmuINPUT_WHEEL) {
-        // SDK SDL owns accumulated fractional detents as well as preciseX/Y.
-        SDL_SendMouseWheel(window, 0, static_cast<float>(event.x),
-                           static_cast<float>(event.y), SDL_MOUSEWHEEL_NORMAL);
-      }
+        if (px < std::numeric_limits<int>::min() || px > std::numeric_limits<int>::max() || py < std::numeric_limits<int>::min() || py > std::numeric_limits<int>::max()) invalid("Pointer coordinate exceeds SDL range");
+        injected.type = SDL_MOUSEMOTION; injected.motion.windowID = window_id; injected.motion.x = static_cast<int>(px); injected.motion.y = static_cast<int>(py); if (!push_event(injected)) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_INPUT_QUEUE", "SDL input queue rejected pointer");
+        if (event.kind == ShinkiEmuINPUT_POINTER_BUTTON) { injected = {}; injected.type = event.pressed ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP; injected.button.windowID = window_id; injected.button.state = event.pressed ? SDL_PRESSED : SDL_RELEASED; injected.button.button = event.button == ShinkiEmuBUTTON_PRIMARY ? SDL_BUTTON_LEFT : event.button == ShinkiEmuBUTTON_SECONDARY ? SDL_BUTTON_RIGHT : SDL_BUTTON_MIDDLE; injected.button.x = static_cast<int>(px); injected.button.y = static_cast<int>(py); if (!push_event(injected)) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_INPUT_QUEUE", "SDL input queue rejected button"); }
+      } else if (event.kind == ShinkiEmuINPUT_WHEEL) { injected.type = SDL_MOUSEWHEEL; injected.wheel.windowID = window_id; injected.wheel.x = static_cast<int>(event.x); injected.wheel.y = static_cast<int>(event.y); if (!push_event(injected)) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_INPUT_QUEUE", "SDL input queue rejected wheel"); }
     }
-    s.pumping.clear();
-    Py_RETURN_NONE;
+    s.pumping.clear(); Py_RETURN_NONE;
   });
 }
 PyObject *py_window(PyObject *, PyObject *args, PyObject *kwargs) {
@@ -878,66 +773,23 @@ struct PythonConfig {
   ~PythonConfig() { PyConfig_Clear(&value); }
 };
 void initialize_python(bool &owns_python) {
-  const fs::path root = package_root(), runtime = root / L"Resources";
-  if (!fs::is_regular_file(runtime / L"shinki_renpy_bridge.py") ||
-      !fs::is_regular_file(runtime / L"renpy" / L"__init__.py") ||
-      !fs::is_regular_file(runtime / L"overrides" / L"display.pyd"))
-    throw Failure(
-        ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING",
-        "Packaged Ren'Py runtime, bridge or display override is missing");
-  if (Py_IsInitialized())
-    throw Failure(
-        ShinkiEmuINVALID_STATE, "RENPY_FOREIGN_INTERPRETER",
-        "SDK CPython was initialized outside the Ren'Py owner service");
-  if (PyImport_AppendInittab("_shinki", &PyInit__shinki) < 0)
-    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_BUILTIN_REGISTRATION",
-                  "Cannot register the native _shinki bridge");
+  const fs::path root = package_root(), runtime = root / "Resources";
+  if (!fs::is_regular_file(runtime / "shinki_renpy_bridge.py") || !fs::is_regular_file(runtime / "renpy" / "__init__.py") || !fs::is_regular_file(runtime / "overrides" / "display.pyd"))
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING", "Packaged Ren'Py runtime, bridge or display override is missing");
+  if (Py_IsInitialized()) throw Failure(ShinkiEmuINVALID_STATE, "RENPY_FOREIGN_INTERPRETER", "SDK CPython was initialized outside the Ren'Py owner service");
+  if (PyImport_AppendInittab("_shinki", &PyInit__shinki) < 0) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_BUILTIN_REGISTRATION", "Cannot register the native _shinki bridge");
   init_librenpy();
-  PyPreConfig pre;
-  PyPreConfig_InitIsolatedConfig(&pre);
-  pre.utf8_mode = 1;
-  check(Py_PreInitialize(&pre));
-  PythonConfig config;
-  auto &c = config.value;
-  c.use_environment = 0;
-  c.site_import = 0;
-  c.write_bytecode = 0;
-  c.parse_argv = 0;
-  c.install_signal_handlers = 0;
-  c.module_search_paths_set = 1;
-  check(PyConfig_SetString(&c, &c.home, runtime.c_str()));
-  check(PyConfig_SetString(&c, &c.prefix, runtime.c_str()));
-  check(PyConfig_SetString(&c, &c.exec_prefix, runtime.c_str()));
-  std::vector<wchar_t> executable(32768);
-  const DWORD n = GetModuleFileNameW(nullptr, executable.data(),
-                                     static_cast<DWORD>(executable.size()));
-  if (!n || n >= executable.size())
-    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_EXECUTABLE_PATH",
-                  "Cannot locate host executable");
-  check(PyConfig_SetString(&c, &c.program_name, executable.data()));
-  check(PyConfig_SetString(&c, &c.executable, executable.data()));
-  const fs::path paths[] = {runtime,
-                            runtime / L"lib" / L"python3.12" / L"site-packages",
-                            runtime / L"lib" / L"python3.12",
-                            runtime / L"lib" / L"python312.zip", root};
-  for (const auto &path : paths)
-    check(PyWideStringList_Append(&c.module_search_paths, path.c_str()));
-  const auto initialized = Py_InitializeFromConfig(&c);
-  owns_python = Py_IsInitialized() != 0;
-  check(initialized);
-  PyObject *platform = PyUnicode_FromString("windows-x86_64");
-  PyObject *os = PyImport_ImportModule("os");
-  PyObject *environment = os ? PyObject_GetAttrString(os, "environ") : nullptr;
-  const int set =
-      environment && platform
-          ? PyMapping_SetItemString(environment, "RENPY_PLATFORM", platform)
-          : -1;
-  Py_XDECREF(environment);
-  Py_XDECREF(os);
-  Py_XDECREF(platform);
-  if (set < 0)
-    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION",
-                  python_error());
+  PyPreConfig pre; PyPreConfig_InitIsolatedConfig(&pre); pre.utf8_mode = 1; check(Py_PreInitialize(&pre));
+  PythonConfig config; auto &c = config.value; c.use_environment = 0; c.site_import = 0; c.write_bytecode = 0; c.parse_argv = 0; c.install_signal_handlers = 0; c.module_search_paths_set = 1;
+  const auto set_path = [&](wchar_t **slot, const fs::path &path) { const std::string value = path.u8string(); check(PyConfig_SetBytesString(&c, slot, value.c_str())); };
+  set_path(&c.home, runtime); set_path(&c.prefix, runtime); set_path(&c.exec_prefix, runtime);
+  const std::string executable = "shinki-emu"; check(PyConfig_SetBytesString(&c, &c.program_name, executable.c_str())); check(PyConfig_SetBytesString(&c, &c.executable, executable.c_str()));
+  const fs::path paths[] = {runtime, runtime / "lib" / "python3.12" / "site-packages", runtime / "lib" / "python3.12", runtime / "lib" / "python312.zip", root};
+  for (const auto &path : paths) { const std::string value = path.u8string(); wchar_t *wide = Py_DecodeLocale(value.c_str(), nullptr); if (!wide) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION", "Cannot encode runtime path"); check(PyWideStringList_Append(&c.module_search_paths, wide)); PyMem_RawFree(wide); }
+  const auto initialized = Py_InitializeFromConfig(&c); owns_python = Py_IsInitialized() != 0; check(initialized);
+  PyObject *platform = PyUnicode_FromString("portable"); PyObject *os = PyImport_ImportModule("os"); PyObject *environment = os ? PyObject_GetAttrString(os, "environ") : nullptr;
+  const int set = environment && platform ? PyMapping_SetItemString(environment, "RENPY_PLATFORM", platform) : -1; Py_XDECREF(environment); Py_XDECREF(os); Py_XDECREF(platform);
+  if (set < 0) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION", python_error());
 }
 
 struct Service {
@@ -1065,12 +917,11 @@ std::shared_ptr<Service> interpreter_service() {
   std::lock_guard<std::mutex> lock(resident_mutex);
   auto &resident = resident_storage();
   if (!resident) {
+#ifdef _WIN32
     HMODULE pinned = nullptr;
-    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                                GET_MODULE_HANDLE_EX_FLAG_PIN,
-                            reinterpret_cast<LPCWSTR>(&package_root), &pinned))
-      throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PIN",
-                    "Cannot retain the process-resident interpreter module");
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN, reinterpret_cast<LPCWSTR>(&package_root), &pinned))
+      throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PIN", "Cannot retain the process-resident interpreter module");
+#endif
     auto service = std::make_shared<Service>();
     std::thread worker([service] { service->work(); });
     worker.detach();
@@ -1190,32 +1041,24 @@ fs::path data_directory(const ShinkiEmuOpenRequest &request,
   }
   fs::path base;
   if (directory.empty()) {
-    const DWORD size = GetEnvironmentVariableW(L"LOCALAPPDATA", nullptr, 0);
-    if (!size)
-      throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY",
-                    "LOCALAPPDATA is not available");
-    std::vector<wchar_t> value(size);
-    const DWORD length =
-        GetEnvironmentVariableW(L"LOCALAPPDATA", value.data(), size);
-    if (!length || length >= size)
-      throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY",
-                    "Cannot read LOCALAPPDATA");
-    base = fs::path(value.data()) / L"ShinkiEMU" / L"renpy";
+#ifdef _WIN32
+    char *value = nullptr; size_t size = 0;
+    if (_dupenv_s(&value, &size, "LOCALAPPDATA") != 0 || !value || !*value) { free(value); throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY", "LOCALAPPDATA is not available"); }
+    base = fs::u8path(value) / "ShinkiEMU" / "renpy"; free(value);
+#else
+    const char *home = std::getenv("HOME");
+    if (!home || !*home) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY", "HOME is not available");
+    base = fs::u8path(home) / ".local" / "share" / "ShinkiEMU" / "renpy";
+#endif
   } else
-    base = fs::path(wide(directory));
-  if (!base.is_absolute())
-    invalid("Data directory must be absolute");
+    base = fs::u8path(directory);
+  if (!base.is_absolute()) invalid("Data directory must be absolute");
   fs::path root = fs::weakly_canonical(base / fs::path(game_hash(game)));
-  const fs::path scripts =
-      fs::is_directory(game / L"game") ? fs::canonical(game / L"game") : game;
-  if (within(root, game) || within(game, root) || within(root, scripts) ||
-      within(scripts, root))
-    invalid("Private data directory must not overlap the game directory");
-  for (const wchar_t *name : {L"saves", L"cache", L"logs"}) {
+  const fs::path scripts = fs::is_directory(game / "game") ? fs::canonical(game / "game") : game;
+  if (within(root, game) || within(game, root) || within(root, scripts) || within(scripts, root)) invalid("Private data directory must not overlap the game directory");
+  for (const char *name : {"saves", "cache", "logs"}) {
     const fs::path child = fs::weakly_canonical(root / name);
-    if (!within(child, root) || within(child, game) || within(child, scripts))
-      invalid("Private save, cache or log directory resolves outside the data "
-              "root");
+    if (!within(child, root) || within(child, game) || within(child, scripts)) invalid("Private save, cache or log directory resolves outside the data root");
     fs::create_directories(child);
   }
   root = fs::canonical(root);
@@ -1250,10 +1093,9 @@ ShinkiEmuStatus open(const ShinkiEmuOpenRequest *request, ShinkiEmuOpenResult *o
     s->host = request->host;
     s->window = request->window;
     s->update_pause();
-    s->game_root = utf8(root);
+    s->game_root = root.u8string();
     if (s->cancelled())
-      return fail(error, ShinkiEmuCANCELLED, "RENPY_OPEN_CANCELLED",
-                  "Open was cancelled");
+      return fail(error, ShinkiEmuCANCELLED, "RENPY_OPEN_CANCELLED", "Open was cancelled");
     auto service = owner->service;
     {
       std::lock_guard<std::mutex> lock(service->mutex);
@@ -1263,7 +1105,7 @@ ShinkiEmuStatus open(const ShinkiEmuOpenRequest *request, ShinkiEmuOpenResult *o
       service->occupied = true;
     }
     Admission admission{service};
-    s->data_root = utf8(data_directory(*request, root));
+    s->data_root = data_directory(*request, root).u8string();
     {
       std::lock_guard<std::mutex> lock(service->mutex);
       service->queued = s;
