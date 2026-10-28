@@ -1,6 +1,9 @@
 use anyhow::{Context, Result, bail};
-use shinki_emu_build::{BuildAsset, CoreBuildManifest, configure_cmake, write_core_build_manifest};
-use std::{env, fs, path::PathBuf};
+use shinki_emu_build::{
+    BuildAsset, CoreBuildManifest, configure_cmake, generate_import_library,
+    write_core_build_manifest,
+};
+use std::{env, path::PathBuf};
 
 fn input(name: &str) -> Result<PathBuf> {
     println!("cargo:rerun-if-env-changed={name}");
@@ -83,6 +86,16 @@ fn run() -> Result<()> {
             cython_license.to_string_lossy().into_owned(),
         ),
     ];
+    if target.ends_with("windows-msvc") {
+        let imports = PathBuf::from(env::var_os("OUT_DIR").context("OUT_DIR")?).join("imports");
+        for library in [&python_lib, &renpython_lib] {
+            generate_import_library(library, &imports, &target)?;
+        }
+        definitions.push((
+            "RENPY_IMPORT_LIBRARY_DIR".into(),
+            imports.to_string_lossy().into_owned(),
+        ));
+    }
     if let Some(ffmpeg) = env::var_os("SHINKI_EMU_FFMPEG_INSTALLED") {
         definitions.push((
             "RENPY_FFMPEG_ROOT".into(),
@@ -120,7 +133,20 @@ fn run() -> Result<()> {
         ),
         asset(cython_license, "licenses/renpy/LICENSE-Cython.txt"),
     ];
+    if target.ends_with("windows-msvc") {
+        manifest.licenses.push(asset(
+            native_dir.join("libwinpthread-1.txt"),
+            "licenses/renpy/libwinpthread-1.txt",
+        ));
+    }
     write_core_build_manifest(&manifest)?;
+    if target.ends_with("windows-msvc") {
+        println!(
+            "cargo:rustc-link-search=native={}",
+            install.join("lib").display()
+        );
+        println!("cargo:rustc-link-lib=dylib=shinki_emu_renpy");
+    }
     Ok(())
 }
 fn main() {
