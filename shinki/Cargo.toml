@@ -7,8 +7,12 @@ license = "MIT"
 publish = false
 build = "build.rs"
 
+[features]
+default = []
+static = []
+
 [lib]
-crate-type = ["rlib"]
+crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 shinki-emu-abi = { git = "https://github.com/Project-Shinkirou/ShinkiEMU", rev = "9cd899babbb54cbc84c3e9fbddfe192c2f9200c8" }
