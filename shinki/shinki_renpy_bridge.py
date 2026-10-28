@@ -5,6 +5,7 @@ import hashlib
 import importlib.abc
 import importlib.util
 import os
+import shutil
 import sys
 import threading
 import types
@@ -267,8 +268,6 @@ def install_hooks():
     # backing surface. Keeping those separate avoids inventing Host window state.
     _replace(core, "get_size", _backing_size)
 
-    renpy.config.savedir = os.path.join(_data_root, "saves")
-    renpy.config.logdir = os.path.join(_data_root, "logs")
     renpy.exports.__main__ = renpy.__main__
     renpy.loader.loadable_cache.clear()
     pygame.display.hint("renpy.pygame_shinki_EMBEDDED", "1")
@@ -381,20 +380,13 @@ def _cleanup():
         raise BaseExceptionGroup("Ren'Py session cleanup failed", errors)
 
 
-def run_session(game_root, data_root):
+def run_session(game_root):
     global _active, _closing, _data_root, _owner, _audio_paused, _pause_seconds, _module_baseline, _surface_ready
     if _active:
         raise RuntimeError("A Ren'Py session is already active.")
     game_root = os.path.abspath(game_root)
-    data_root = os.path.abspath(data_root)
-    # Loading is read-only with respect to the supplied game, including saves.
-    try:
-        inside_game = os.path.commonpath((os.path.normcase(game_root), os.path.normcase(data_root))) == os.path.normcase(game_root)
-    except ValueError:  # Different Windows volumes.
-        inside_game = False
-    if inside_game:
-        raise ValueError("The private data root must be outside the game directory.")
-    for name in ("saves", "logs", "cache"):
+    data_root = tempfile.mkdtemp(prefix="shinki-renpy-")
+    for name in ("cache",):
         os.makedirs(os.path.join(data_root, name), exist_ok=True)
 
     old_path = list(sys.path)
@@ -417,13 +409,12 @@ def run_session(game_root, data_root):
     _module_baseline = None
     _warned.clear()
     os.environ["renpy.pygame_shinki_EMBEDDED"] = "1"
-    os.environ["RENPY_LOG_BASE"] = os.path.join(data_root, "logs")
     os.environ["RENPY_HIGHDPI"] = "1"
     os.environ["RENPY_NO_REDIRECT_STDIO"] = "1"
     os.environ["RENPY_RENDERER"] = "gl2"
     os.environ["RENPY_DISABLE_JOYSTICK"] = "1"
-    sys.argv = ["renpy", game_root, "run", "--savedir", os.path.join(data_root, "saves")]
-    os.chdir(data_root)
+    sys.argv = ["renpy", game_root, "run"]
+    os.chdir(game_root)
     try:
         import renpy
         renpy.session.clear()
@@ -432,9 +423,6 @@ def run_session(game_root, data_root):
         spec = importlib.util.spec_from_file_location("_shinki_renpy_entry", os.path.join(_RUNTIME, "renpy.py"))
         entry = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(entry)
-        entry.path_to_saves = lambda gamedir, save_directory=None: os.path.join(
-            data_root, "saves", save_directory if save_directory in ("tokens", "backups") else "")
-        entry.path_to_logdir = lambda basedir: os.path.join(data_root, "logs")
         renpy.__main__ = entry
         import renpy.bootstrap
         try:
@@ -485,6 +473,7 @@ def run_session(game_root, data_root):
             os.chdir(old_cwd)
             os.environ.clear()
             os.environ.update(old_env)
+            shutil.rmtree(data_root, ignore_errors=True)
             _active = False
             _closing = False
             _owner = None

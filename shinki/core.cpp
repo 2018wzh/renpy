@@ -151,10 +151,6 @@ std::string game_hash(const fs::path &p) {
   for (const unsigned char ch : path_key(p)) hash = (hash ^ ch) * 1099511628211ull;
   std::ostringstream out; out << std::hex << std::setfill('0') << std::setw(16) << hash; return out.str();
 }
-bool within(const fs::path &child, const fs::path &parent) {
-  const auto c = path_key(child), p = path_key(parent);
-  return c == p || (c.size() > p.size() && c.compare(0, p.size(), p) == 0 && (p.back() == '/' || c[p.size()] == '/'));
-}
 fs::path package_root() {
 #ifdef _WIN32
   HMODULE module = nullptr;
@@ -230,8 +226,7 @@ struct Session {
   Owner *owner = nullptr;
   uint64_t epoch = 0, context = 0, output = 0, generation = 0, request = 0,
            wake = 0;
-  std::string game_root, data_root;
-  ShinkiEmuWindowState window{};
+  std::string game_root;
   bool user_paused = false, effective_pause = false, configured = false,
        done = false, failed = false;
   Clock::time_point pause_start{};
@@ -846,14 +841,9 @@ struct Service {
               entry ? PyUnicode_DecodeUTF8(s->game_root.data(),
                                            s->game_root.size(), "strict")
                     : nullptr;
-          PyObject *data =
-              game ? PyUnicode_DecodeUTF8(s->data_root.data(),
-                                          s->data_root.size(), "strict")
-                   : nullptr;
           PyObject *result =
-              data ? PyObject_CallFunctionObjArgs(entry, game, data, nullptr)
-                   : nullptr;
-          Py_XDECREF(data);
+              entry && game ? PyObject_CallFunctionObjArgs(entry, game, nullptr)
+                            : nullptr;
           Py_XDECREF(game);
           Py_XDECREF(entry);
           Py_XDECREF(module);
@@ -971,18 +961,6 @@ ShinkiEmuStatus describe(ShinkiEmuDescriptor *out,
       invalid("Null descriptor output");
     static const ShinkiEmuBytes formats[] = {bytes("rpy"), bytes("rpyc"),
                                             bytes("rpa")};
-    static const ShinkiEmuConfigField data = [] {
-      ShinkiEmuConfigField field{};
-      field.id = bytes("data_directory");
-      field.label = bytes("Data directory");
-      field.group = bytes("Storage");
-      field.default_value.kind = ShinkiEmuVALUE_STRING;
-      field.max_bytes = ShinkiEmuMAX_CONFIG_TEXT;
-      field.flags = ShinkiEmuCONFIG_FLAG_DIRECTORY_PATH;
-      field.description = bytes("Private per-game saves, cache and logs. Empty "
-                                "uses the local application data directory.");
-      return field;
-    }();
     *out = {{sizeof(*out), ShinkiEmuABI_VERSION},
             bytes("renpy"),
             bytes("renpy"),
@@ -1020,51 +998,6 @@ bool valid_window(const ShinkiEmuWindowState &w) noexcept {
   return w.focused <= 1 && w.suspended <= 1 && std::isfinite(w.scale_factor) &&
          w.scale_factor > 0 &&
          (w.suspended || (w.drawable_width && w.drawable_height));
-}
-fs::path data_directory(const ShinkiEmuOpenRequest &request,
-                        const fs::path &game) {
-  if (request.configuration_count > ShinkiEmuMAX_CONFIG_FIELDS ||
-      (request.configuration_count && !request.configuration))
-    invalid("Invalid configuration span");
-  std::string directory;
-  bool seen = false;
-  for (size_t i = 0; i < request.configuration_count; ++i) {
-    const auto &entry = request.configuration[i];
-    if (text(entry.id, ShinkiEmuMAX_CONFIG_TEXT, false) != "data_directory" ||
-        seen)
-      invalid("Unknown or duplicate Ren'Py configuration field");
-    seen = true;
-    if (entry.value.kind != ShinkiEmuVALUE_STRING || entry.value.reserved ||
-        entry.value.integer != 0 || entry.value.number != 0)
-      invalid("data_directory requires a string value");
-    directory = text(entry.value.text, ShinkiEmuMAX_CONFIG_TEXT);
-  }
-  fs::path base;
-  if (directory.empty()) {
-#ifdef _WIN32
-    char *value = nullptr; size_t size = 0;
-    if (_dupenv_s(&value, &size, "LOCALAPPDATA") != 0 || !value || !*value) { free(value); throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY", "LOCALAPPDATA is not available"); }
-    base = fs::u8path(value) / "ShinkiEMU" / "renpy"; free(value);
-#else
-    const char *home = std::getenv("HOME");
-    if (!home || !*home) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_DATA_DIRECTORY", "HOME is not available");
-    base = fs::u8path(home) / ".local" / "share" / "ShinkiEMU" / "renpy";
-#endif
-  } else
-    base = fs::u8path(directory);
-  if (!base.is_absolute()) invalid("Data directory must be absolute");
-  fs::path root = fs::weakly_canonical(base / fs::path(game_hash(game)));
-  const fs::path scripts = fs::is_directory(game / "game") ? fs::canonical(game / "game") : game;
-  if (within(root, game) || within(game, root) || within(root, scripts) || within(scripts, root)) invalid("Private data directory must not overlap the game directory");
-  for (const char *name : {"saves", "cache", "logs"}) {
-    const fs::path child = fs::weakly_canonical(root / name);
-    if (!within(child, root) || within(child, game) || within(child, scripts)) invalid("Private save, cache or log directory resolves outside the data root");
-    fs::create_directories(child);
-  }
-  root = fs::canonical(root);
-  if (within(root, game) || within(game, root))
-    invalid("Private data directory resolves into the game directory");
-  return root;
 }
 ShinkiEmuStatus open(const ShinkiEmuOpenRequest *request, ShinkiEmuOpenResult *out,
                     ShinkiEmuError *error) noexcept {
@@ -1105,7 +1038,6 @@ ShinkiEmuStatus open(const ShinkiEmuOpenRequest *request, ShinkiEmuOpenResult *o
       service->occupied = true;
     }
     Admission admission{service};
-    s->data_root = data_directory(*request, root).u8string();
     {
       std::lock_guard<std::mutex> lock(service->mutex);
       service->queued = s;
