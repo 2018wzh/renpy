@@ -7,14 +7,22 @@ https://www.renpy.org
 ShinkiEMU adapter
 ================
 
-``shinki/Cargo.toml`` builds the Windows x64 official-SDK adapter with Rust
-1.98 or newer and edition 2024. The upstream baseline is release
+``shinki/Cargo.toml`` builds the Windows x64 and Linux x64 official-SDK
+adapter with Rust 1.99.1 and edition 2024. The upstream baseline is release
 ``8.5.3.26051504`` (``39895c1e017f0b36ffea2447d97eccd69d76ee1c``).
-``shinki/sdk.json`` pins the matching official SDK archive and native DLL
+``shinki/sdk.json`` pins the matching official SDK archive and native runtime
 hashes; ShinkiEMU's ``build/dependencies.toml`` must use the same pins.
 Prepare and build from ShinkiEMU with ``cargo xtask deps --core renpy
---target x86_64-pc-windows-msvc`` and ``cargo xtask build --core renpy
---target x86_64-pc-windows-msvc --release``.
+--target <triple>`` and ``cargo xtask build --core renpy --target <triple>
+--release``. Linux uses ``x86_64-unknown-linux-gnu`` and Windows uses
+``x86_64-pc-windows-msvc``.
+
+The Linux adapter and display extension link the SDK's ``librenpython.so``;
+the SDK combines CPython, SDL and native Ren'Py modules in that library.
+Their install RPATHs resolve it beside the packaged core, and the display
+override uses the native ``.so`` extension suffix. ShinkiEMU prepares a
+task-owned build interpreter from pinned CPython and Cython sources on Linux.
+Upstream script execution, rendering and save resolvers are unchanged.
 
 
 

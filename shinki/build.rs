@@ -59,7 +59,7 @@ fn run() -> Result<()> {
     let python_lib = if target.contains("windows") {
         native_dir.join("libpython3.12.dll")
     } else {
-        native_dir.join("libpython3.12.so")
+        native_dir.join("librenpython.so")
     };
     let renpython_lib = if target.contains("windows") {
         native_dir.join("librenpython.dll")
@@ -115,7 +115,7 @@ fn run() -> Result<()> {
     } else if target.contains("apple") {
         install.join("libshinki_emu_renpy.dylib")
     } else {
-        install.join("libshinki_emu_renpy.so")
+        install.join("shinki_emu_renpy.so")
     };
     let mut manifest = CoreBuildManifest::new("renpy", "native-shared")?;
     manifest.native_library = Some(library);
@@ -124,7 +124,11 @@ fn run() -> Result<()> {
         asset(source.join("LICENSE"), "licenses/renpy/LICENSE-SHINKI.txt"),
         asset(sdk.join("LICENSE.txt"), "licenses/renpy/LICENSE-RenPy.txt"),
         asset(
-            python.join("LICENSE.txt"),
+            python.join(if target.contains("windows") {
+                "LICENSE.txt"
+            } else {
+                "LICENSE"
+            }),
             "licenses/renpy/LICENSE-CPython.txt",
         ),
         asset(
