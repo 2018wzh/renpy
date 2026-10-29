@@ -1361,7 +1361,13 @@ const ShinkiEmuCoreApi api{{sizeof(ShinkiEmuCoreApi), ShinkiEmuABI_VERSION},
                           extension};
 } // namespace
 
-extern "C" __declspec(dllexport) ShinkiEmuStatus
+extern "C"
+#ifdef _WIN32
+__declspec(dllexport)
+#else
+__attribute__((visibility("default")))
+#endif
+ShinkiEmuStatus
 shinki_emu_query(uint32_t version, const ShinkiEmuCoreApi **out) noexcept {
   if (!out)
     return ShinkiEmuINVALID_ARGUMENT;
