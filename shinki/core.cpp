@@ -773,7 +773,7 @@ void initialize_python(bool &owns_python) {
 #ifdef _WIN32
   const fs::path display_module = runtime / "overrides" / "display.pyd";
 #else
-  const fs::path display_module = root / "display.so";
+  const fs::path display_module = runtime / "display.so";
 #endif
   if (!fs::is_regular_file(runtime / "shinki_renpy_bridge.py") || !fs::is_regular_file(runtime / "renpy" / "__init__.py") || !fs::is_regular_file(display_module))
     throw Failure(ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING", "Packaged Ren'Py runtime, bridge or display override is missing");

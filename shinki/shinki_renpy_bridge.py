@@ -30,7 +30,7 @@ _sdk_classes = []
 class _DisplayFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
         if fullname == "renpy.pygame.display":
-            filename = os.path.join(_RUNTIME, "overrides", "display.pyd") if sys.platform == "win32" else os.path.join(os.path.dirname(_RUNTIME), "display.so")
+            filename = os.path.join(_RUNTIME, "overrides", "display.pyd") if sys.platform == "win32" else os.path.join(_RUNTIME, "display.so")
             return importlib.util.spec_from_file_location(fullname, filename)
         return None
 
