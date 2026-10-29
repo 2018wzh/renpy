@@ -771,11 +771,11 @@ struct PythonConfig {
 void initialize_python(bool &owns_python) {
   const fs::path root = package_root(), runtime = root / "Resources";
 #ifdef _WIN32
-  constexpr const char *display_module = "display.pyd";
+  const fs::path display_module = runtime / "overrides" / "display.pyd";
 #else
-  constexpr const char *display_module = "display.so";
+  const fs::path display_module = root / "display.so";
 #endif
-  if (!fs::is_regular_file(runtime / "shinki_renpy_bridge.py") || !fs::is_regular_file(runtime / "renpy" / "__init__.py") || !fs::is_regular_file(runtime / "overrides" / display_module))
+  if (!fs::is_regular_file(runtime / "shinki_renpy_bridge.py") || !fs::is_regular_file(runtime / "renpy" / "__init__.py") || !fs::is_regular_file(display_module))
     throw Failure(ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING", "Packaged Ren'Py runtime, bridge or display override is missing");
   if (Py_IsInitialized()) throw Failure(ShinkiEmuINVALID_STATE, "RENPY_FOREIGN_INTERPRETER", "SDK CPython was initialized outside the Ren'Py owner service");
   if (PyImport_AppendInittab("_shinki", &PyInit__shinki) < 0) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_BUILTIN_REGISTRATION", "Cannot register the native _shinki bridge");

@@ -120,6 +120,9 @@ fn run() -> Result<()> {
     let mut manifest = CoreBuildManifest::new("renpy", "native-shared")?;
     manifest.native_library = Some(library);
     manifest.resources = vec![asset(install.join("Resources"), "Resources")];
+    if target.contains("linux") {
+        manifest.resources.push(asset(install.join("display.so"), "display.so"));
+    }
     manifest.licenses = vec![
         asset(source.join("LICENSE"), "licenses/renpy/LICENSE-SHINKI.txt"),
         asset(sdk.join("LICENSE.txt"), "licenses/renpy/LICENSE-RenPy.txt"),
