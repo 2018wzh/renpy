@@ -302,3 +302,12 @@ Unicode 输入、原生存读档、ATL 暂停恢复、初始挂起、关闭后 l
 不打包 Steam、Cubism、Bink、nvdrs 或微软 D3DCompiler 再发行 DLL。
 ANGLE 如需 D3DCompiler，使用 Windows 系统组件。商业资源、存档与验证画面
 不属于核心包或源码仓库。
+
+Apple SDK 输入
+--------------
+
+``shinki/sdk.json`` 记录官方 SDK ZIP（SHA256
+``ff57648f9c04f27e381c48af6d8e3ee3cdec296bed4d3831f47f09b0a71b505e``）中
+``lib/py3-mac-universal/librenpython.dylib`` 的实际 SHA256
+``6a675b0605b1a7c82d24ca448fbaa76c1d17e2c18597c232469a534dd34b0dc3``。
+该记录用于核对准备好的输入；macOS 的单架构裁剪、运行库打包和 iOS 静态运行时仍需各自的构建验收。

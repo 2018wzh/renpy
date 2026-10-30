@@ -17,5 +17,8 @@
   },
   "linux_x86_64": {
     "librenpython.so": "2da80c126f8ed8262673de6263a9975e22fb292004446cb89fba45b18da39238"
+  },
+  "mac_universal": {
+    "librenpython.dylib": "6a675b0605b1a7c82d24ca448fbaa76c1d17e2c18597c232469a534dd34b0dc3"
   }
 }
