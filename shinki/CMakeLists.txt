@@ -97,6 +97,12 @@ elseif(APPLE)
         execute_process(COMMAND install_name_tool -id @rpath/librenpython.dylib
             \"\${CMAKE_INSTALL_PREFIX}/Resources/librenpython.dylib\"
             COMMAND_ERROR_IS_FATAL ANY)
+        foreach(binary shinki_emu_renpy.dylib Resources/display.so)
+            execute_process(COMMAND install_name_tool
+                -change @executable_path/librenpython.dylib @rpath/librenpython.dylib
+                \"\${CMAKE_INSTALL_PREFIX}/\${binary}\"
+                COMMAND_ERROR_IS_FATAL ANY)
+        endforeach()
     ")
 else()
     foreach(lib librenpython.so)
