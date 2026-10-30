@@ -24,6 +24,12 @@ override uses the native ``.so`` extension suffix. ShinkiEMU prepares a
 task-owned build interpreter from pinned CPython and Cython sources on Linux.
 Upstream script execution, rendering and save resolvers are unchanged.
 
+The macOS adapter links the verified universal SDK runtime at
+``lib/py3-mac-universal/librenpython.dylib``. Packaging thins it to the
+requested architecture and uses ``@loader_path/Resources`` for the core
+and ``@loader_path`` for the display extension. iOS needs a separate
+static runtime build; the desktop SDK dylib is not an iOS runtime.
+
 
 
 Branches

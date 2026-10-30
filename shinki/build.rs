@@ -51,18 +51,22 @@ fn run() -> Result<()> {
     );
     let native_dir = if target.contains("windows") {
         sdk.join("lib/py3-windows-x86_64")
-    } else if target.contains("apple") {
-        sdk.join("lib/py3-mac-x86_64")
+    } else if target.ends_with("apple-darwin") {
+        sdk.join("lib/py3-mac-universal")
     } else {
         sdk.join("lib/py3-linux-x86_64")
     };
     let python_lib = if target.contains("windows") {
         native_dir.join("libpython3.12.dll")
+    } else if target.ends_with("apple-darwin") {
+        native_dir.join("librenpython.dylib")
     } else {
         native_dir.join("librenpython.so")
     };
     let renpython_lib = if target.contains("windows") {
         native_dir.join("librenpython.dll")
+    } else if target.ends_with("apple-darwin") {
+        native_dir.join("librenpython.dylib")
     } else {
         native_dir.join("librenpython.so")
     };
@@ -86,6 +90,14 @@ fn run() -> Result<()> {
             cython_license.to_string_lossy().into_owned(),
         ),
     ];
+    if target.ends_with("apple-darwin") {
+        let architecture = if target.starts_with("aarch64-") { "arm64" } else { "x86_64" };
+        definitions.push(("CMAKE_SYSTEM_NAME".into(), "Darwin".into()));
+        definitions.push(("CMAKE_OSX_ARCHITECTURES".into(), architecture.into()));
+        let toolchain = PathBuf::from(env::var_os("OUT_DIR").context("OUT_DIR")?).join("apple.cmake");
+        std::fs::write(&toolchain, "set(CMAKE_SYSTEM_NAME Darwin)\n")?;
+        definitions.push(("CMAKE_TOOLCHAIN_FILE".into(), toolchain.to_string_lossy().into_owned()));
+    }
     if target.ends_with("windows-msvc") {
         let imports = PathBuf::from(env::var_os("OUT_DIR").context("OUT_DIR")?).join("imports");
         for library in [&python_lib, &renpython_lib] {
@@ -113,7 +125,7 @@ fn run() -> Result<()> {
     let library = if target.contains("windows") {
         install.join("shinki_emu_renpy.dll")
     } else if target.contains("apple") {
-        install.join("libshinki_emu_renpy.dylib")
+        install.join("shinki_emu_renpy.dylib")
     } else {
         install.join("shinki_emu_renpy.so")
     };
