@@ -191,6 +191,11 @@ def main():
             context.include("{{ renpy }}/tmp/gen3-static")
     import tasks
     from renpybuild.task import tasks as native_tasks
+    # Manager supplies NativeActivity and the APK. RAPT's standalone Java/APK
+    # packaging rows are not prerequisites of the native archive closure.
+    standalone_packaging = {("rapt", "copy"), ("sdl2", "rapt"), ("pyjnius", "rapt")}
+    native_tasks[:] = [task for task in native_tasks
+                       if (task.name, task.task) not in standalone_packaging]
     unpack = next(task for task in native_tasks if task.name == "sdl2" and task.task == "unpack")
     original_unpack = unpack.function
     def unpack_offscreen(context):

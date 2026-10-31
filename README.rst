@@ -79,6 +79,9 @@ Target-specific CPython sysconfig data lives under
 ``Resources/lib/<target>/python3.12`` and precedes the common standard
 library on the interpreter path. Development ``config-*`` archives are not
 runtime assets; common files are byte-identical across the universal APK.
+The recipe runner builds the full native closure through ``librenpy``.
+It excludes RAPT's standalone Java/APK packaging rows because Manager owns
+NativeActivity and packaging; no native compile task is replaced or skipped.
 
 
 
