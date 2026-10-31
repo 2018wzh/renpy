@@ -25,10 +25,21 @@ task-owned build interpreter from pinned CPython and Cython sources on Linux.
 Upstream script execution, rendering and save resolvers are unchanged.
 
 The macOS adapter links the verified universal SDK runtime at
-``lib/py3-mac-universal/librenpython.dylib``. Packaging thins it to the
-requested architecture and uses ``@loader_path/Resources`` for the core
-and ``@loader_path`` for the display extension. iOS needs a separate
-static runtime build; the desktop SDK dylib is not an iOS runtime.
+``lib/py3-mac-universal/librenpython.dylib``. The adapter and display
+extension also build as universal x86_64/arm64 dylibs. Packaging preserves
+both runtime slices and uses ``@loader_path/Resources`` for the core and
+``@loader_path`` for the display extension.
+
+The ``static`` adapter feature builds a real archive and builtin display
+override, exporting ``shinki_emu_renpy_query`` instead of the shared plugin
+entrypoint. ``RENPY_STATIC_ROOT`` selects target-built CPython headers under
+``include/python3.12``, native archives under ``lib`` and the system-library
+closure in ``lib/pkgconfig/shinki-renpy-runtime.pc``. It never substitutes
+the desktop runtime for a mobile target. Before registering the embedded
+provider, the host calls ``set_resource_root`` with the packaged
+``cores/renpy/Resources`` directory; changing it after interpreter startup
+is rejected. Python sources, the bridge and licenses remain recorded in
+the native-static build manifest for Manager packaging.
 
 
 

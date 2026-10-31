@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use shinki_emu_build::{
     BuildAsset, CoreBuildManifest, configure_cmake, generate_import_library,
-    write_core_build_manifest,
+    link_android_static_core, link_apple_static_core, write_core_build_manifest,
 };
 use std::{env, path::PathBuf};
 
@@ -24,6 +24,33 @@ fn asset(source: PathBuf, dest: &str) -> BuildAsset {
 }
 fn run() -> Result<()> {
     let target = env::var("TARGET")?;
+    let static_build = env::var_os("CARGO_FEATURE_STATIC").is_some();
+    let static_root = if static_build {
+        if !(target.contains("apple-ios") || target.ends_with("-linux-android")) {
+            bail!("Ren'Py static embedding requires an iOS or Android target");
+        }
+        let root = input("RENPY_STATIC_ROOT")?;
+        for relative in [
+            "include/python3.12/Python.h",
+            "include/python3.12/pyconfig.h",
+            "lib/librenpy.a",
+            "lib/libpython3.12.a",
+            "lib/pkgconfig/shinki-renpy-runtime.pc",
+        ] {
+            if !root.join(relative).is_file() {
+                bail!(
+                    "missing target Ren'Py runtime input: {}",
+                    root.join(relative).display()
+                );
+            }
+        }
+        Some(root)
+    } else {
+        if target.contains("apple-ios") || target.ends_with("-linux-android") {
+            bail!("Ren'Py mobile targets require the static adapter feature");
+        }
+        None
+    };
     let source = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR")?);
     let sdk = input("RENPY_SDK_ROOT")?;
     let python = input("RENPY_PYTHON_DEV")?;
@@ -71,7 +98,7 @@ fn run() -> Result<()> {
         native_dir.join("librenpython.so")
     };
     for path in [&python_lib, &renpython_lib] {
-        if !path.exists() {
+        if !static_build && !path.exists() {
             bail!("missing Ren'Py runtime library: {}", path.display());
         }
     }
@@ -90,13 +117,45 @@ fn run() -> Result<()> {
             cython_license.to_string_lossy().into_owned(),
         ),
     ];
-    if target.ends_with("apple-darwin") {
-        let architecture = if target.starts_with("aarch64-") { "arm64" } else { "x86_64" };
-        definitions.push(("CMAKE_SYSTEM_NAME".into(), "Darwin".into()));
+    if let Some(root) = &static_root {
+        definitions.push(("RENPY_STATIC".into(), "ON".into()));
+        definitions.push((
+            "RENPY_STATIC_ROOT".into(),
+            root.to_string_lossy().into_owned(),
+        ));
+    }
+    if target.contains("apple") {
+        let ios = target.contains("apple-ios");
+        let architecture = if !ios {
+            "x86_64;arm64"
+        } else if target.starts_with("aarch64-") {
+            "arm64"
+        } else {
+            "x86_64"
+        };
+        let system = if ios { "iOS" } else { "Darwin" };
+        definitions.push(("CMAKE_SYSTEM_NAME".into(), system.into()));
         definitions.push(("CMAKE_OSX_ARCHITECTURES".into(), architecture.into()));
-        let toolchain = PathBuf::from(env::var_os("OUT_DIR").context("OUT_DIR")?).join("apple.cmake");
-        std::fs::write(&toolchain, "set(CMAKE_SYSTEM_NAME Darwin)\n")?;
-        definitions.push(("CMAKE_TOOLCHAIN_FILE".into(), toolchain.to_string_lossy().into_owned()));
+        if ios {
+            let sdk = if target.ends_with("-sim") || target.starts_with("x86_64-") {
+                "iphonesimulator"
+            } else {
+                "iphoneos"
+            };
+            definitions.push(("CMAKE_OSX_SYSROOT".into(), sdk.into()));
+            definitions.push(("CMAKE_OSX_DEPLOYMENT_TARGET".into(), "16.0".into()));
+            definitions.push((
+                "CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED".into(),
+                "NO".into(),
+            ));
+        }
+        let toolchain =
+            PathBuf::from(env::var_os("OUT_DIR").context("OUT_DIR")?).join("apple.cmake");
+        std::fs::write(&toolchain, format!("set(CMAKE_SYSTEM_NAME {system})\n"))?;
+        definitions.push((
+            "CMAKE_TOOLCHAIN_FILE".into(),
+            toolchain.to_string_lossy().into_owned(),
+        ));
     }
     if target.ends_with("windows-msvc") {
         let imports = PathBuf::from(env::var_os("OUT_DIR").context("OUT_DIR")?).join("imports");
@@ -122,25 +181,43 @@ fn run() -> Result<()> {
     }
     let native_build = configure_cmake(&source, &definitions, &["install"])?;
     let install = native_build.join("install");
-    let library = if target.contains("windows") {
+    let library = if let Some(root) = &static_root {
+        if target.contains("apple") {
+            link_apple_static_core("renpy", &native_build, std::slice::from_ref(root))?
+        } else {
+            link_android_static_core(&native_build, std::slice::from_ref(root))?;
+            install.join("lib/libshinki_emu_renpy.a")
+        }
+    } else if target.contains("windows") {
         install.join("shinki_emu_renpy.dll")
     } else if target.contains("apple") {
         install.join("shinki_emu_renpy.dylib")
     } else {
         install.join("shinki_emu_renpy.so")
     };
-    let mut manifest = CoreBuildManifest::new("renpy", "native-shared")?;
+    let mut manifest = CoreBuildManifest::new(
+        "renpy",
+        if static_build {
+            "native-static"
+        } else {
+            "native-shared"
+        },
+    )?;
     manifest.native_library = Some(library);
     manifest.resources = vec![asset(install.join("Resources"), "Resources")];
     manifest.licenses = vec![
         asset(source.join("LICENSE"), "licenses/renpy/LICENSE-SHINKI.txt"),
         asset(sdk.join("LICENSE.txt"), "licenses/renpy/LICENSE-RenPy.txt"),
         asset(
-            python.join(if target.contains("windows") {
-                "LICENSE.txt"
+            if let Some(root) = &static_root {
+                root.join("LICENSE-CPython.txt")
             } else {
-                "LICENSE"
-            }),
+                python.join(if target.contains("windows") {
+                    "LICENSE.txt"
+                } else {
+                    "LICENSE"
+                })
+            },
             "licenses/renpy/LICENSE-CPython.txt",
         ),
         asset(

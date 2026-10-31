@@ -38,6 +38,9 @@
 #include <vector>
 
 extern "C" void init_librenpy(void);
+#ifdef RENPY_STATIC
+extern "C" PyObject *PyInit_renpy_pygame_display(void);
+#endif
 
 bool push_event(const SDL_Event &event) {
   return SDL_PushEvent(const_cast<SDL_Event *>(&event)) == 1;
@@ -151,6 +154,12 @@ std::string game_hash(const fs::path &p) {
   for (const unsigned char ch : path_key(p)) hash = (hash ^ ch) * 1099511628211ull;
   std::ostringstream out; out << std::hex << std::setfill('0') << std::setw(16) << hash; return out.str();
 }
+#ifdef RENPY_STATIC
+std::mutex runtime_location_mutex;
+fs::path static_runtime;
+bool runtime_started = false;
+#endif
+#ifndef RENPY_STATIC
 fs::path package_root() {
 #ifdef _WIN32
   HMODULE module = nullptr;
@@ -162,6 +171,18 @@ fs::path package_root() {
   Dl_info info{};
   if (!dladdr(reinterpret_cast<const void *>(&package_root), &info) || !info.dli_fname) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_MODULE_PATH", "Cannot locate adapter library");
   return fs::absolute(fs::u8path(info.dli_fname)).parent_path();
+#endif
+}
+#endif
+fs::path runtime_directory() {
+#ifdef RENPY_STATIC
+  std::lock_guard<std::mutex> lock(runtime_location_mutex);
+  if (static_runtime.empty())
+    throw Failure(ShinkiEmuINVALID_STATE, "RENPY_RUNTIME_ROOT", "The host must configure the embedded Ren'Py resource directory before creating an owner");
+  runtime_started = true;
+  return static_runtime;
+#else
+  return package_root() / "Resources";
 #endif
 }
 struct Detection {
@@ -769,16 +790,26 @@ struct PythonConfig {
   ~PythonConfig() { PyConfig_Clear(&value); }
 };
 void initialize_python(bool &owns_python) {
-  const fs::path root = package_root(), runtime = root / "Resources";
+  const fs::path runtime = runtime_directory(), root = runtime.parent_path();
+#ifndef RENPY_STATIC
 #ifdef _WIN32
   const fs::path display_module = runtime / "overrides" / "display.pyd";
 #else
   const fs::path display_module = runtime / "display.so";
 #endif
-  if (!fs::is_regular_file(runtime / "shinki_renpy_bridge.py") || !fs::is_regular_file(runtime / "renpy" / "__init__.py") || !fs::is_regular_file(display_module))
-    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING", "Packaged Ren'Py runtime, bridge or display override is missing");
+  if (!fs::is_regular_file(display_module))
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING", "Packaged Ren'Py display override is missing");
+#endif
+  if (!fs::is_regular_file(runtime / "shinki_renpy_bridge.py") || !fs::is_regular_file(runtime / "renpy" / "__init__.py"))
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_RUNTIME_MISSING", "Packaged Ren'Py runtime or bridge is missing");
   if (Py_IsInitialized()) throw Failure(ShinkiEmuINVALID_STATE, "RENPY_FOREIGN_INTERPRETER", "SDK CPython was initialized outside the Ren'Py owner service");
   if (PyImport_AppendInittab("_shinki", &PyInit__shinki) < 0) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_BUILTIN_REGISTRATION", "Cannot register the native _shinki bridge");
+#ifdef RENPY_STATIC
+  // Reference the override from the owner object so static archive extraction
+  // supplies its init symbol before librenpy's original display object.
+  if (PyImport_AppendInittab("renpy.pygame.display", &PyInit_renpy_pygame_display) < 0)
+    throw Failure(ShinkiEmuCORE_ERROR, "RENPY_BUILTIN_REGISTRATION", "Cannot register the embedded display override");
+#endif
   init_librenpy();
   PyPreConfig pre; PyPreConfig_InitIsolatedConfig(&pre); pre.utf8_mode = 1; check(Py_PreInitialize(&pre));
   PythonConfig config; auto &c = config.value; c.use_environment = 0; c.site_import = 0; c.write_bytecode = 0; c.parse_argv = 0; c.install_signal_handlers = 0; c.module_search_paths_set = 1;
@@ -1360,6 +1391,26 @@ const ShinkiEmuCoreApi api{{sizeof(ShinkiEmuCoreApi), ShinkiEmuABI_VERSION},
                           close,
                           extension};
 } // namespace
+#ifdef RENPY_STATIC
+extern "C" ShinkiEmuStatus shinki_emu_renpy_set_resource_root(
+    ShinkiEmuBytes path, ShinkiEmuError *error) noexcept {
+  return boundary(error, [&] {
+    if (!path.data || !path.len || std::memchr(path.data, 0, path.len))
+      invalid("Embedded resource directory must be a nonempty path without NUL");
+    const std::string value(reinterpret_cast<const char *>(path.data), path.len);
+    std::error_code ec;
+    const auto directory = fs::canonical(fs::u8path(value), ec);
+    if (ec || !fs::is_directory(directory))
+      invalid("Embedded resource directory is not accessible");
+    std::lock_guard<std::mutex> lock(runtime_location_mutex);
+    if (runtime_started)
+      throw Failure(ShinkiEmuINVALID_STATE, "RENPY_RUNTIME_STARTED", "Cannot change resources after the interpreter starts");
+    static_runtime = directory;
+    return ShinkiEmuOK;
+  });
+}
+#define shinki_emu_query shinki_emu_renpy_query
+#endif
 
 extern "C"
 #ifdef _WIN32
