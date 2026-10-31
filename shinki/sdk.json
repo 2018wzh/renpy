@@ -14,5 +14,11 @@
     "libwinpthread-1.dll": "eb5c64566c2935ff0709cf248d2036fa87acfb862ff722f7017a48fdc571bd3b",
     "libEGL.dll": "b20c1e14e42da55c13dad3c23a5060ca086eaf5b18b12ef5c60cd7e80276a9f2",
     "libGLESv2.dll": "2d171e91e1fe7205b76dd69ba9f7ddce7910283a5a5111c09c84f5db8c795a74"
+  },
+  "linux_x86_64": {
+    "librenpython.so": "2da80c126f8ed8262673de6263a9975e22fb292004446cb89fba45b18da39238"
+  },
+  "mac_universal": {
+    "librenpython.dylib": "6a675b0605b1a7c82d24ca448fbaa76c1d17e2c18597c232469a534dd34b0dc3"
   }
 }

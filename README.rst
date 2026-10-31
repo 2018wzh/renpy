@@ -7,14 +7,39 @@ https://www.renpy.org
 ShinkiEMU adapter
 ================
 
-``shinki/Cargo.toml`` builds the Windows x64 official-SDK adapter with Rust
-1.98 or newer and edition 2024. The upstream baseline is release
+``shinki/Cargo.toml`` builds the Windows x64 and Linux x64 official-SDK
+adapter with Rust 1.99.1 and edition 2024. The upstream baseline is release
 ``8.5.3.26051504`` (``39895c1e017f0b36ffea2447d97eccd69d76ee1c``).
-``shinki/sdk.json`` pins the matching official SDK archive and native DLL
+``shinki/sdk.json`` pins the matching official SDK archive and native runtime
 hashes; ShinkiEMU's ``build/dependencies.toml`` must use the same pins.
 Prepare and build from ShinkiEMU with ``cargo xtask deps --core renpy
---target x86_64-pc-windows-msvc`` and ``cargo xtask build --core renpy
---target x86_64-pc-windows-msvc --release``.
+--target <triple>`` and ``cargo xtask build --core renpy --target <triple>
+--release``. Linux uses ``x86_64-unknown-linux-gnu`` and Windows uses
+``x86_64-pc-windows-msvc``.
+
+The Linux adapter and display extension link the SDK's ``librenpython.so``;
+the SDK combines CPython, SDL and native Ren'Py modules in that library.
+Their install RPATHs resolve it beside the packaged core, and the display
+override uses the native ``.so`` extension suffix. ShinkiEMU prepares a
+task-owned build interpreter from pinned CPython and Cython sources on Linux.
+Upstream script execution, rendering and save resolvers are unchanged.
+
+The macOS adapter links the verified universal SDK runtime at
+``lib/py3-mac-universal/librenpython.dylib``. The adapter and display
+extension also build as universal x86_64/arm64 dylibs. Packaging preserves
+both runtime slices and uses ``@loader_path/Resources`` for the core and
+``@loader_path`` for the display extension.
+
+The ``static`` adapter feature builds a real archive and builtin display
+override, exporting ``shinki_emu_renpy_query`` instead of the shared plugin
+entrypoint. ``RENPY_STATIC_ROOT`` selects target-built CPython headers under
+``include/python3.12``, native archives under ``lib`` and the system-library
+closure in ``lib/pkgconfig/shinki-renpy-runtime.pc``. It never substitutes
+the desktop runtime for a mobile target. Before registering the embedded
+provider, the host calls ``set_resource_root`` with the packaged
+``cores/renpy/Resources`` directory; changing it after interpreter startup
+is rejected. Python sources, the bridge and licenses remain recorded in
+the native-static build manifest for Manager packaging.
 
 
 
@@ -294,3 +319,12 @@ Unicode 输入、原生存读档、ATL 暂停恢复、初始挂起、关闭后 l
 不打包 Steam、Cubism、Bink、nvdrs 或微软 D3DCompiler 再发行 DLL。
 ANGLE 如需 D3DCompiler，使用 Windows 系统组件。商业资源、存档与验证画面
 不属于核心包或源码仓库。
+
+Apple SDK 输入
+--------------
+
+``shinki/sdk.json`` 记录官方 SDK ZIP（SHA256
+``ff57648f9c04f27e381c48af6d8e3ee3cdec296bed4d3831f47f09b0a71b505e``）中
+``lib/py3-mac-universal/librenpython.dylib`` 的实际 SHA256
+``6a675b0605b1a7c82d24ca448fbaa76c1d17e2c18597c232469a534dd34b0dc3``。
+该记录用于核对准备好的输入；macOS 的单架构裁剪、运行库打包和 iOS 静态运行时仍需各自的构建验收。
