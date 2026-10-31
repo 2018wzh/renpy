@@ -11,7 +11,12 @@
   "ios": {
     "url": "https://www.renpy.org/dl/8.5.3/renpy-8.5.3-renios.zip",
     "sha256": "c4fae153e8276ed0faed5e84ea3e0b7c4bf337f0e3208e9130c6a41748a83b2b",
-    "python": "3.12.8"
+    "python": "3.12.8",
+    "metalangle": {
+      "rev": "850c87ba5b744c7c39f30c66bacdc9648d15067a",
+      "url": "https://codeload.github.com/kakashidinho/metalangle/tar.gz/850c87ba5b744c7c39f30c66bacdc9648d15067a",
+      "sha256": "f17a957d210acb29504f873583e8f5341e253a9b7fadbdfb4cae14eee9944f43"
+    }
   },
   "windows_x86_64": {
     "libpython3.12.dll": "e964c5a8decf29db4cff43f5eb268f711b8a89e83375b44c14e6fcc2171d5e18",

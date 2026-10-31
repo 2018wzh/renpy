@@ -1403,7 +1403,7 @@ extern "C" ShinkiEmuStatus shinki_emu_renpy_set_resource_root(
     if (ec || !fs::is_directory(directory))
       invalid("Embedded resource directory is not accessible");
     std::lock_guard<std::mutex> lock(runtime_location_mutex);
-    if (runtime_started)
+    if (runtime_started && static_runtime != directory)
       throw Failure(ShinkiEmuINVALID_STATE, "RENPY_RUNTIME_STARTED", "Cannot change resources after the interpreter starts");
     static_runtime = directory;
     return ShinkiEmuOK;

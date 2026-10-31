@@ -208,7 +208,10 @@ fn run() -> Result<()> {
     manifest.resources = vec![asset(install.join("Resources"), "Resources")];
     manifest.licenses = vec![
         asset(source.join("LICENSE"), "licenses/renpy/LICENSE-SHINKI.txt"),
-        asset(source.join("../README.rst"), "licenses/renpy/MODIFICATIONS.rst"),
+        asset(
+            source.join("../README.rst"),
+            "licenses/renpy/MODIFICATIONS.rst",
+        ),
         asset(sdk.join("LICENSE.txt"), "licenses/renpy/LICENSE-RenPy.txt"),
         asset(
             if let Some(root) = &static_root {
@@ -228,6 +231,14 @@ fn run() -> Result<()> {
         ),
         asset(cython_license, "licenses/renpy/LICENSE-Cython.txt"),
     ];
+    if target.contains("apple-ios")
+        && let Some(root) = &static_root
+    {
+        manifest.licenses.push(asset(
+            root.join("LICENSE-MetalANGLE.txt"),
+            "licenses/renpy/LICENSE-MetalANGLE.txt",
+        ));
+    }
     if target.ends_with("windows-msvc") {
         manifest.licenses.push(asset(
             native_dir.join("libwinpthread-1.txt"),

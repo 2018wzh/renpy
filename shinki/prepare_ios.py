@@ -16,8 +16,8 @@ import sys
 import tarfile
 import tempfile
 
-recipe, renios, sdk, host_python, output = map(pathlib.Path, sys.argv[1:6])
-target = sys.argv[6]
+recipe, renios, sdk, host_python, output, metalangle = map(pathlib.Path, sys.argv[1:7])
+target = sys.argv[7]
 variants = {
     "aarch64-apple-ios": ("arm64", "iphoneos", "release", "ios-arm64_armv7", "arm64-apple-ios16.0"),
     "aarch64-apple-ios-sim": ("arm64", "iphonesimulator", "debug", "ios-arm64_i386_x86_64-simulator", "arm64-apple-ios16.0-simulator"),
@@ -87,6 +87,7 @@ with tempfile.TemporaryDirectory(prefix="renpy-ios-", dir=output.parent) as temp
     shutil.copytree(python / "Include", include, dirs_exist_ok=True)
     shutil.copy2(python / "pyconfig.h", include / "pyconfig.h")
     shutil.copy2(python / "LICENSE", stage / "LICENSE-CPython.txt")
+    shutil.copy2(metalangle / "LICENSE", stage / "LICENSE-MetalANGLE.txt")
     # Match the runtime's SDL headers, not the desktop SDK's development headers.
     sdl_tar = recipe / "source/SDL2-2.0.20.tar.gz"
     with tarfile.open(sdl_tar) as archive:
