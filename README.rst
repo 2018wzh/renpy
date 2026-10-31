@@ -29,6 +29,9 @@ The macOS adapter links the verified universal SDK runtime at
 extension also build as universal x86_64/arm64 dylibs. Packaging preserves
 both runtime slices and uses ``@loader_path/Resources`` for the core and
 ``@loader_path`` for the display extension.
+Universal desktop builds use SDL's architecture-aware ``SDL_config_macosx.h``
+rather than the host interpreter's configured SDL feature probes. Mobile
+static builds retain their target-generated SDL configuration.
 
 The ``static`` adapter feature builds a real archive and builtin display
 override, exporting ``shinki_emu_renpy_query`` instead of the shared plugin

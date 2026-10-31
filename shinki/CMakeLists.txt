@@ -41,6 +41,11 @@ foreach(required "${RENPY_PYTHON_HEADERS}/Python.h" "${RENPY_SDL_INCLUDE}/SDL.h"
     endif()
 endforeach()
 file(COPY "${RENPY_SDL_INCLUDE}/" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/headers/SDL2")
+if(APPLE AND NOT RENPY_STATIC)
+    # Host configure probes cannot describe both slices of a universal module.
+    configure_file("${RENPY_SDL_INCLUDE}/SDL_config_macosx.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/headers/SDL2/SDL_config.h" COPYONLY)
+endif()
 file(GLOB_RECURSE cython_dependencies CONFIGURE_DEPENDS "${RENPY_SOURCE}/renpy/*.pxd" "${RENPY_SOURCE}/src/*.pxd")
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/display.c"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/generate_display.py"
