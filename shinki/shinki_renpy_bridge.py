@@ -39,7 +39,8 @@ _finder = _DisplayFinder()
 # Install before importing even renpy.pygame: event cimports this display's C API.
 if "renpy.pygame.display" in sys.modules:
     raise RuntimeError("The embedded display override must precede pygame imports.")
-sys.meta_path.insert(0, _finder)
+if "renpy.pygame.display" not in sys.builtin_module_names:
+    sys.meta_path.insert(0, _finder)
 
 
 def session_active():
