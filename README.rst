@@ -57,6 +57,8 @@ rebuilt from its pinned source with private Objective-C class names; Mach-O
 symbol rewriting alone does not isolate UIKit runtime classes.
 Class identifiers are read as ASCII tokens from the original source bytes,
 so legacy-encoded SDL comments do not affect namespace enumeration.
+SDL's configure host tuple selects the upstream UIKit/CoreAudio iOS backend;
+the compiler still targets the exact device or simulator SDK and architecture.
 
 
 

@@ -119,7 +119,8 @@ with tempfile.TemporaryDirectory(prefix="renpy-ios-", dir=output.parent) as temp
     sdl_environment["LDFLAGS"] = "-F" + shlex.quote(str(resources / "Frameworks")) + " -framework ShinkiRenpyMetalANGLE"
     sdl_environment["CXX"] = capture("xcrun", "--sdk", sdk_name, "--find", "clang++") + f" -target {clang_target} -isysroot {shlex.quote(sdk_path)}"
     sdl_environment["OBJC"] = sdl_environment["CC"]
-    run(str(sdl / "configure"), f"--host={arch}-apple-darwin",
+    # SDL2 selects UIKit with its upstream *-ios-* host convention, not Darwin.
+    run(str(sdl / "configure"), f"--host={arch}-ios-darwin",
         "--build=" + capture(str(sdl / "build-scripts/config.guess")),
         "--prefix=" + str(work / "sdl-install"), "--disable-shared", "--enable-static",
         "--disable-render-metal", "--disable-jack", "--disable-pipewire",
