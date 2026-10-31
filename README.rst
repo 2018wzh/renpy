@@ -41,6 +41,18 @@ provider, the host calls ``set_resource_root`` with the packaged
 is rejected. Python sources, the bridge and licenses remain recorded in
 the native-static build manifest for Manager packaging.
 
+For iOS, ``prepare_ios.py`` consumes the SHA-256-pinned official Renios
+archive and the pinned renpy-build source tree. It selects device or
+simulator static archives, generates CPython 3.12.8 headers with Xcode's
+target compiler, and stages the matching MetalANGLE framework. The
+upstream always-true OS-version shim and app entrypoint archives are not
+linked. The host bundles MetalANGLE under its standard ``Frameworks``
+directory and signs the resulting application.
+Native archives and the private framework use a generated symbol namespace,
+keeping Ren'Py's FFmpeg/SDL ABI separate from other embedded cores. SDL2 is
+rebuilt from its pinned source with private Objective-C class names; Mach-O
+symbol rewriting alone does not isolate UIKit runtime classes.
+
 
 
 Branches

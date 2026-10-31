@@ -33,6 +33,7 @@ fn run() -> Result<()> {
         for relative in [
             "include/python3.12/Python.h",
             "include/python3.12/pyconfig.h",
+            "include/shinki-renpy-symbols.h",
             "lib/librenpy.a",
             "lib/libpython3.12.a",
             "lib/pkgconfig/shinki-renpy-runtime.pc",
@@ -207,6 +208,7 @@ fn run() -> Result<()> {
     manifest.resources = vec![asset(install.join("Resources"), "Resources")];
     manifest.licenses = vec![
         asset(source.join("LICENSE"), "licenses/renpy/LICENSE-SHINKI.txt"),
+        asset(source.join("../README.rst"), "licenses/renpy/MODIFICATIONS.rst"),
         asset(sdk.join("LICENSE.txt"), "licenses/renpy/LICENSE-RenPy.txt"),
         asset(
             if let Some(root) = &static_root {

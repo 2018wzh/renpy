@@ -8,6 +8,11 @@
   "cython": "3.2.4",
   "sdl": "2.0.20",
   "abi_revision": "9cd899babbb54cbc84c3e9fbddfe192c2f9200c8",
+  "ios": {
+    "url": "https://www.renpy.org/dl/8.5.3/renpy-8.5.3-renios.zip",
+    "sha256": "c4fae153e8276ed0faed5e84ea3e0b7c4bf337f0e3208e9130c6a41748a83b2b",
+    "python": "3.12.8"
+  },
   "windows_x86_64": {
     "libpython3.12.dll": "e964c5a8decf29db4cff43f5eb268f711b8a89e83375b44c14e6fcc2171d5e18",
     "librenpython.dll": "36c48e7659c78a2223b4f69467eaeada71b995fd381a56264bf370fe67ddd757",
