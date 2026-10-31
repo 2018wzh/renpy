@@ -82,6 +82,8 @@ runtime assets; common files are byte-identical across the universal APK.
 The recipe runner builds the full native closure through ``librenpy``.
 It excludes RAPT's standalone Java/APK packaging rows because Manager owns
 NativeActivity and packaging; no native compile task is replaced or skipped.
+Inventoried Python downloads stay under the recipe's ignored ``tmp/`` build
+directory, so preparing the second ABI keeps the pinned source checkout clean.
 
 
 

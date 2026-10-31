@@ -99,7 +99,7 @@ def stage(root, destination, target):
     # into the target tree. Use the SDK's inventoried pure Python artifacts,
     # including their exact corresponding sources, instead.
     inventory = json.loads(PYTHON_SOURCES.read_text(encoding="utf-8"))
-    cache = root / "tars/shinki-python"
+    cache = root / "tmp/shinki-python-cache"
     cache.mkdir(parents=True, exist_ok=True)
     packages = []
     for record in inventory["tools"] + inventory["packages"]:
