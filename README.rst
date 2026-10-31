@@ -41,6 +41,45 @@ provider, the host calls ``set_resource_root`` with the packaged
 is rejected. Python sources, the bridge and licenses remain recorded in
 the native-static build manifest for Manager packaging.
 
+Android runtime sources
+-----------------------
+
+``shinki/android_runtime.py`` builds the real CPython, Ren'Py builtin modules,
+SDL2 and native dependency archives from official ``renpy-build`` revision
+``7bfab40c1174f622f644b24669afd5fb167fbb79`` and Ren'Py source revision
+``39895c1e017f0b36ffea2447d97eccd69d76ee1c``. Use a dedicated Ubuntu 24.04
+build root provisioned with the upstream build prerequisites, Cython 3.2.4,
+NDK r29's Linux archive and the official ``CubismSdkForNative-4-r.6.2.zip``
+header SDK in ``tars``. ``shinki/sdk.json`` records their URLs and SHA256
+checksums. The script verifies both source revisions and both SDK archive
+checksums and limits native jobs to three::
+
+    python shinki/android_runtime.py --build-root /path/to/renpy-build \
+        --target aarch64-linux-android --output /path/to/runtime-arm64
+
+Run again with ``x86_64-linux-android`` and a different output directory.
+Each output supplies ``RENPY_STATIC_ROOT``, the target standard library,
+its CPython license and the Cubism header SDK's license notice.
+``runtime.json`` records the source pins and archive hashes. Existing outputs
+are preserved. The Cubism Core implementation is not linked or copied:
+upstream loads a game-supplied library at runtime. Its proprietary license
+remains separate from Ren'Py's license.
+
+This private SDL2 build uses an EGL pbuffer on Android's default display,
+not an SDLActivity window. Audio retains native OpenSL ES output and uses
+SDL's pthread priority path without calling an absent SDLActivity Java API.
+The adapter selects GLES2 on Android. Native C and C++ symbols are renamed
+throughout the runtime archives, with a matching C header for adapter/display
+compilation, separating SDL2, its codecs and HarfBuzz from other cores.
+The staged Python packages come from the exact source/wheel inventory in
+``licenses/renpy/python-sources.json``; host-native acceleration modules are
+not copied into Android resources.
+The desktop SDK and RAPT shared libraries are not Android static inputs.
+Target-specific CPython sysconfig data lives under
+``Resources/lib/<target>/python3.12`` and precedes the common standard
+library on the interpreter path. Development ``config-*`` archives are not
+runtime assets; common files are byte-identical across the universal APK.
+
 
 
 Branches

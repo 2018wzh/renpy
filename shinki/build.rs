@@ -33,6 +33,7 @@ fn run() -> Result<()> {
         for relative in [
             "include/python3.12/Python.h",
             "include/python3.12/pyconfig.h",
+            "include/shinki-renpy-symbols.h",
             "lib/librenpy.a",
             "lib/libpython3.12.a",
             "lib/pkgconfig/shinki-renpy-runtime.pc",
@@ -124,6 +125,25 @@ fn run() -> Result<()> {
             root.to_string_lossy().into_owned(),
         ));
     }
+    if target.ends_with("-linux-android") {
+        let ndk = input("ANDROID_NDK_HOME")?;
+        let toolchain = ndk.join("build/cmake/android.toolchain.cmake");
+        if !toolchain.is_file() {
+            bail!("Android NDK CMake toolchain is missing: {}", toolchain.display());
+        }
+        let abi = match target.as_str() {
+            "aarch64-linux-android" => "arm64-v8a",
+            "x86_64-linux-android" => "x86_64",
+            _ => bail!("unsupported Ren'Py Android target {target}"),
+        };
+        definitions.extend([
+            ("CMAKE_TOOLCHAIN_FILE".into(), toolchain.to_string_lossy().into_owned()),
+            ("ANDROID_ABI".into(), abi.into()),
+            ("ANDROID_PLATFORM".into(), "android-28".into()),
+            ("ANDROID_STL".into(), "c++_shared".into()),
+            ("CMAKE_POSITION_INDEPENDENT_CODE".into(), "ON".into()),
+        ]);
+    }
     if target.contains("apple") {
         let ios = target.contains("apple-ios");
         let architecture = if !ios {
@@ -167,7 +187,7 @@ fn run() -> Result<()> {
             imports.to_string_lossy().into_owned(),
         ));
     }
-    if let Some(ffmpeg) = env::var_os("SHINKI_EMU_FFMPEG_INSTALLED") {
+    if !static_build && let Some(ffmpeg) = env::var_os("SHINKI_EMU_FFMPEG_INSTALLED") {
         definitions.push((
             "RENPY_FFMPEG_ROOT".into(),
             PathBuf::from(ffmpeg).to_string_lossy().into_owned(),
@@ -207,6 +227,7 @@ fn run() -> Result<()> {
     manifest.resources = vec![asset(install.join("Resources"), "Resources")];
     manifest.licenses = vec![
         asset(source.join("LICENSE"), "licenses/renpy/LICENSE-SHINKI.txt"),
+        asset(source.join("../README.rst"), "licenses/renpy/MODIFICATIONS.rst"),
         asset(sdk.join("LICENSE.txt"), "licenses/renpy/LICENSE-RenPy.txt"),
         asset(
             if let Some(root) = &static_root {
@@ -226,6 +247,12 @@ fn run() -> Result<()> {
         ),
         asset(cython_license, "licenses/renpy/LICENSE-Cython.txt"),
     ];
+    if let Some(root) = &static_root && target.ends_with("-linux-android") {
+        manifest.licenses.push(asset(
+            root.join("LICENSE-Cubism-Headers.md"),
+            "licenses/renpy/LICENSE-Cubism-Headers.md",
+        ));
+    }
     if target.ends_with("windows-msvc") {
         manifest.licenses.push(asset(
             native_dir.join("libwinpthread-1.txt"),

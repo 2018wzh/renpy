@@ -408,7 +408,7 @@ def run_session(game_root):
     os.environ["renpy.pygame_shinki_EMBEDDED"] = "1"
     os.environ["RENPY_HIGHDPI"] = "1"
     os.environ["RENPY_NO_REDIRECT_STDIO"] = "1"
-    os.environ["RENPY_RENDERER"] = "gl2"
+    os.environ["RENPY_RENDERER"] = "gles2" if hasattr(sys, "getandroidapilevel") else "gl2"
     os.environ["RENPY_DISABLE_JOYSTICK"] = "1"
     sys.argv = ["renpy", game_root, "run"]
     os.chdir(game_root)

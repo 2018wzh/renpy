@@ -816,7 +816,14 @@ void initialize_python(bool &owns_python) {
   const auto set_path = [&](wchar_t **slot, const fs::path &path) { const std::string value = path.u8string(); check(PyConfig_SetBytesString(&c, slot, value.c_str())); };
   set_path(&c.home, runtime); set_path(&c.prefix, runtime); set_path(&c.exec_prefix, runtime);
   const std::string executable = "shinki-emu"; check(PyConfig_SetBytesString(&c, &c.program_name, executable.c_str())); check(PyConfig_SetBytesString(&c, &c.executable, executable.c_str()));
-  const fs::path paths[] = {runtime, runtime / "lib" / "python3.12" / "site-packages", runtime / "lib" / "python3.12", runtime / "lib" / "python312.zip", root};
+  const fs::path paths[] = {runtime,
+#if defined(__ANDROID__) && defined(__aarch64__)
+      runtime / "lib/aarch64-linux-android/python3.12",
+#elif defined(__ANDROID__) && defined(__x86_64__)
+      runtime / "lib/x86_64-linux-android/python3.12",
+#endif
+      runtime / "lib" / "python3.12" / "site-packages",
+      runtime / "lib" / "python3.12", runtime / "lib" / "python312.zip", root};
   for (const auto &path : paths) { const std::string value = path.u8string(); wchar_t *wide = Py_DecodeLocale(value.c_str(), nullptr); if (!wide) throw Failure(ShinkiEmuCORE_ERROR, "RENPY_PYTHON_INITIALIZATION", "Cannot encode runtime path"); check(PyWideStringList_Append(&c.module_search_paths, wide)); PyMem_RawFree(wide); }
   const auto initialized = Py_InitializeFromConfig(&c); owns_python = Py_IsInitialized() != 0; check(initialized);
   PyObject *platform = PyUnicode_FromString("portable"); PyObject *os = PyImport_ImportModule("os"); PyObject *environment = os ? PyObject_GetAttrString(os, "environ") : nullptr;
@@ -1403,7 +1410,7 @@ extern "C" ShinkiEmuStatus shinki_emu_renpy_set_resource_root(
     if (ec || !fs::is_directory(directory))
       invalid("Embedded resource directory is not accessible");
     std::lock_guard<std::mutex> lock(runtime_location_mutex);
-    if (runtime_started)
+    if (runtime_started && static_runtime != directory)
       throw Failure(ShinkiEmuINVALID_STATE, "RENPY_RUNTIME_STARTED", "Cannot change resources after the interpreter starts");
     static_runtime = directory;
     return ShinkiEmuOK;

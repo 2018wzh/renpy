@@ -1,0 +1,69 @@
+--- a/src/video/SDL_egl.c
++++ b/src/video/SDL_egl.c
+@@ -574,6 +574,24 @@ SDL_EGL_InitializeOffscreen(_THIS, int device)
+         return SDL_SetError("SDL_EGL_LoadLibraryOnly() has not been called or has failed.");
+     }
+ 
++#ifdef __ANDROID__
++    /* ShinkiEMU: Android exposes its native EGL display through EGL_DEFAULT_DISPLAY.
++       A pbuffer needs no SDLActivity and no optional desktop device-enumeration extension. */
++    if (device != 0) {
++        return SDL_SetError("Android offscreen rendering uses the default EGL display.");
++    }
++    _this->egl_data->egl_display = _this->egl_data->eglGetDisplay(EGL_DEFAULT_DISPLAY);
++    if (_this->egl_data->egl_display == EGL_NO_DISPLAY) {
++        return SDL_SetError("Could not obtain the Android EGL display.");
++    }
++    if (_this->egl_data->eglInitialize(_this->egl_data->egl_display, NULL, NULL) != EGL_TRUE) {
++        return SDL_SetError("Could not initialize Android EGL.");
++    }
++    SDL_EGL_GetVersion(_this);
++    _this->egl_data->is_offscreen = SDL_TRUE;
++    return 0;
++#endif
++
+     /* Check for all extensions that are optional until used and fail if any is missing */
+     if (_this->egl_data->eglQueryDevicesEXT == NULL) {
+         return SDL_SetError("eglQueryDevicesEXT is missing (EXT_device_enumeration not supported by the drivers?)");
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -90,7 +90,8 @@ static VideoBootStrap *bootstrap[] = {
+ #if SDL_VIDEO_DRIVER_UIKIT
+     &UIKIT_bootstrap,
+ #endif
+-#if SDL_VIDEO_DRIVER_ANDROID
++/* ShinkiEMU's private offscreen build must not create an SDLActivity window. */
++#if SDL_VIDEO_DRIVER_ANDROID && !SDL_VIDEO_DRIVER_OFFSCREEN
+     &Android_bootstrap,
+ #endif
+ #if SDL_VIDEO_DRIVER_PSP
+--- a/src/audio/SDL_audio.c
++++ b/src/audio/SDL_audio.c
+@@ -706,7 +706,7 @@ SDL_RunAudio(void *devicep)
+ 
+     SDL_assert(!device->iscapture);
+ 
+-#if SDL_AUDIO_DRIVER_ANDROID
++#if SDL_AUDIO_DRIVER_ANDROID && !SDL_VIDEO_DRIVER_OFFSCREEN
+     {
+         /* Set thread priority to THREAD_PRIORITY_AUDIO */
+         extern void Android_JNI_AudioSetThreadPriority(int, int);
+@@ -811,7 +811,7 @@ SDL_CaptureAudio(void *devicep)
+ 
+     SDL_assert(device->iscapture);
+ 
+-#if SDL_AUDIO_DRIVER_ANDROID
++#if SDL_AUDIO_DRIVER_ANDROID && !SDL_VIDEO_DRIVER_OFFSCREEN
+     {
+         /* Set thread priority to THREAD_PRIORITY_AUDIO */
+         extern void Android_JNI_AudioSetThreadPriority(int, int);
+--- a/src/thread/pthread/SDL_systhread.c
++++ b/src/thread/pthread/SDL_systhread.c
+@@ -72,6 +72,6 @@ static void *
+ RunThread(void *data)
+ {
+-#ifdef __ANDROID__
++#if defined(__ANDROID__) && !SDL_VIDEO_DRIVER_OFFSCREEN
+     Android_JNI_SetupThread();
+ #endif
+     SDL_RunThread((SDL_Thread *) data);

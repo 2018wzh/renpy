@@ -8,6 +8,14 @@
   "cython": "3.2.4",
   "sdl": "2.0.20",
   "abi_revision": "9cd899babbb54cbc84c3e9fbddfe192c2f9200c8",
+  "android": {
+    "renpy_build": "7bfab40c1174f622f644b24669afd5fb167fbb79",
+    "python": "3.12.8",
+    "ndk_url": "https://dl.google.com/android/repository/android-ndk-r29-linux.zip",
+    "ndk_sha256": "4abbbcdc842f3d4879206e9695d52709603e52dd68d3c1fff04b3b5e7a308ecf",
+    "cubism_url": "https://cubism.live2d.com/sdk-native/bin/CubismSdkForNative-4-r.6.2.zip",
+    "cubism_sha256": "312b24904824568fd5d6ce13881f00ebcb81aa610e4964d3c28539f1bcbf4e87"
+  },
   "windows_x86_64": {
     "libpython3.12.dll": "e964c5a8decf29db4cff43f5eb268f711b8a89e83375b44c14e6fcc2171d5e18",
     "librenpython.dll": "36c48e7659c78a2223b4f69467eaeada71b995fd381a56264bf370fe67ddd757",
