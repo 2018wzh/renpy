@@ -83,7 +83,7 @@ else()
     add_library(shinki_emu_renpy SHARED core.cpp)
 endif()
 target_compile_features(shinki_emu_renpy PRIVATE cxx_std_17)
-target_include_directories(shinki_emu_renpy PRIVATE ${RENPY_PYTHON_INCLUDE} "${CMAKE_CURRENT_BINARY_DIR}/headers" "${RENPY_SDL_INCLUDE}" "${CMAKE_CURRENT_LIST_DIR}/vendor/shinki-emu-abi/include")
+target_include_directories(shinki_emu_renpy PRIVATE ${RENPY_PYTHON_INCLUDE} "${CMAKE_CURRENT_BINARY_DIR}/headers" "${CMAKE_CURRENT_BINARY_DIR}/headers/SDL2" "${CMAKE_CURRENT_LIST_DIR}/vendor/shinki-emu-abi/include")
 if(RENPY_STATIC AND EXISTS "${RENPY_STATIC_ROOT}/include/shinki-renpy-symbols.h")
     target_compile_options(shinki_emu_renpy PRIVATE
         "-include" "${RENPY_STATIC_ROOT}/include/shinki-renpy-symbols.h")
