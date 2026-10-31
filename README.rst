@@ -55,6 +55,8 @@ Native archives and the private framework use a generated symbol namespace,
 keeping Ren'Py's FFmpeg/SDL ABI separate from other embedded cores. SDL2 is
 rebuilt from its pinned source with private Objective-C class names; Mach-O
 symbol rewriting alone does not isolate UIKit runtime classes.
+Class identifiers are read as ASCII tokens from the original source bytes,
+so legacy-encoded SDL comments do not affect namespace enumeration.
 
 
 

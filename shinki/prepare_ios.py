@@ -103,7 +103,8 @@ with tempfile.TemporaryDirectory(prefix="renpy-ios-", dir=output.parent) as temp
     classes = set()
     for source in (sdl / "src").rglob("*"):
         if source.suffix in {".m", ".h"}:
-            classes.update(re.findall(r"@interface\s+(\w+)\s*:", source.read_text(errors="strict")))
+            classes.update(name.decode("ascii") for name in re.findall(
+                rb"@interface\s+([A-Za-z_][A-Za-z_0-9]*)\s*:", source.read_bytes()))
     class_header = work / "sdl-classes.h"
     class_header.write_text("".join(f"#define {name} ShinkiRenpy{name}\n" for name in sorted(classes)))
     run("sh", "./autogen.sh", cwd=sdl)
