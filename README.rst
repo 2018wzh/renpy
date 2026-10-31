@@ -29,6 +29,9 @@ The macOS adapter links the verified universal SDK runtime at
 extension also build as universal x86_64/arm64 dylibs. Packaging preserves
 both runtime slices and uses ``@loader_path/Resources`` for the core and
 ``@loader_path`` for the display extension.
+Universal desktop builds use SDL's architecture-aware ``SDL_config_macosx.h``
+rather than the host interpreter's configured SDL feature probes. Mobile
+static builds retain their target-generated SDL configuration.
 
 The ``static`` adapter feature builds a real archive and builtin display
 override, exporting ``shinki_emu_renpy_query`` instead of the shared plugin
@@ -84,6 +87,21 @@ It excludes RAPT's standalone Java/APK packaging rows because Manager owns
 NativeActivity and packaging; no native compile task is replaced or skipped.
 Inventoried Python downloads stay under the recipe's ignored ``tmp/`` build
 directory, so preparing the second ABI keeps the pinned source checkout clean.
+
+iOS runtime sources
+-------------------
+
+For iOS, ``prepare_ios.py`` consumes the SHA-256-pinned official Renios
+archive and the pinned renpy-build source tree. It selects device or
+simulator static archives, generates CPython 3.12.8 headers with Xcode's
+target compiler, and stages the matching MetalANGLE framework. The
+upstream always-true OS-version shim and app entrypoint archives are not
+linked. The host bundles MetalANGLE under its standard ``Frameworks``
+directory and signs the resulting application.
+Native archives and the private framework use a generated symbol namespace,
+keeping Ren'Py's FFmpeg/SDL ABI separate from other embedded cores. SDL2 is
+rebuilt from its pinned source with private Objective-C class names; Mach-O
+symbol rewriting alone does not isolate UIKit runtime classes.
 
 
 

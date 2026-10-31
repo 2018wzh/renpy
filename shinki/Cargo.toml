@@ -21,7 +21,7 @@ shinki-emu-abi = { git = "https://github.com/Project-Shinkirou/ShinkiEMU", rev =
 anyhow = "1"
 serde_json = "1"
 sha2 = "0.10"
-shinki-emu-build = { git = "https://github.com/Project-Shinkirou/ShinkiEMU", rev = "2d873bd78925b30e76783958269d0fc14ac6caca" }
+shinki-emu-build = { git = "https://github.com/Project-Shinkirou/ShinkiEMU", rev = "3efbe55d18f4b4b4256216db15e47c0d50b731f9" }
 
 [workspace]
 
