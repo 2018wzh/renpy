@@ -65,9 +65,14 @@ with tempfile.TemporaryDirectory(prefix="renpy-ios-", dir=output.parent) as temp
     with (framework / "Info.plist").open("wb") as stream:
         plistlib.dump(metadata, stream)
     python_tar = recipe / "source/Python-3.12.8.tar.xz"
-    (work / "python").mkdir()
-    # Match renpy-build's Python source recipe without requiring host _lzma.
-    run("tar", "-xf", str(python_tar), "-C", str(work / "python"))
+    # BSD tar decodes XZ; Python retains its original safe extraction filter.
+    command = ["tar", "-cf", "-", "@" + str(python_tar)]
+    with subprocess.Popen(command, stdout=subprocess.PIPE) as unpacker:
+        with tarfile.open(fileobj=unpacker.stdout, mode="r|") as archive:
+            archive.extractall(work / "python", filter="data")
+        unpacker.stdout.read()
+        if unpacker.wait():
+            raise subprocess.CalledProcessError(unpacker.returncode, command)
     python = work / "python/Python-3.12.8"
     run("patch", "-p1", "-i", str(recipe / "patches/Python-3.12.8/cross-darwin.diff"), cwd=python)
     run("autoreconf", "-vfi", cwd=python)
