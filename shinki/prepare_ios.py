@@ -65,8 +65,9 @@ with tempfile.TemporaryDirectory(prefix="renpy-ios-", dir=output.parent) as temp
     with (framework / "Info.plist").open("wb") as stream:
         plistlib.dump(metadata, stream)
     python_tar = recipe / "source/Python-3.12.8.tar.xz"
-    with tarfile.open(python_tar) as archive:
-        archive.extractall(work / "python", filter="data")
+    (work / "python").mkdir()
+    # Match renpy-build's Python source recipe without requiring host _lzma.
+    run("tar", "-xf", str(python_tar), "-C", str(work / "python"))
     python = work / "python/Python-3.12.8"
     run("patch", "-p1", "-i", str(recipe / "patches/Python-3.12.8/cross-darwin.diff"), cwd=python)
     run("autoreconf", "-vfi", cwd=python)

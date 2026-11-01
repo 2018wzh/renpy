@@ -59,6 +59,9 @@ Class identifiers are read as ASCII tokens from the original source bytes,
 so legacy-encoded SDL comments do not affect namespace enumeration.
 SDL's configure host tuple selects the upstream UIKit/CoreAudio iOS backend;
 the compiler still targets the exact device or simulator SDK and architecture.
+The pinned CPython XZ source archive is extracted with the system ``tar``,
+as in renpy-build's Python recipes. This does not require the build
+interpreter's optional ``_lzma`` module or change the target runtime.
 
 
 
